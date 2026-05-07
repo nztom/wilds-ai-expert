@@ -28,6 +28,8 @@ This folder is the local working memory for Monster Hunter Wilds weapon and armo
 - `talismans_normalized.csv`: Talisman title, skills, rarity, HR, materials, unlock notes.
 - `skill_index.csv`: Derived lookup by skill. Use this first when answering "where can this skill go?"
 - `current_meta_notes.md`: Current Ver. 1.041 / TU4 base-game meta snapshot for weapons, armor engines, Gogma Artian priorities, and hard-quest heuristics.
+- `fishing_locations.md`: Aquatic life, fish locations, bait, and Kanya fishing quest notes.
+- `endemic_life_locations.md`: Broader capture-net endemic life lookup, rare targets, conditions, and practical routes.
 - `source_counts.json`: Source URLs and row counts from the refresh.
 
 ## Quick Query Examples
