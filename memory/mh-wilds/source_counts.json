@@ -1,0 +1,27 @@
+[
+  {
+    "file": "decorations_armor.csv",
+    "rows": 71,
+    "source": "https://www.gamerguides.com/monster-hunter-wilds/database/decorations/armor-decorations"
+  },
+  {
+    "file": "decorations_weapon.csv",
+    "rows": 317,
+    "source": "https://www.gamerguides.com/monster-hunter-wilds/database/decorations/weapon-decorations"
+  },
+  {
+    "file": "skills.csv",
+    "rows": 196,
+    "source": "https://www.gamerguides.com/monster-hunter-wilds/database/skills"
+  },
+  {
+    "file": "armor.csv",
+    "rows": 573,
+    "source": "https://www.gamerguides.com/monster-hunter-wilds/database/armor"
+  },
+  {
+    "file": "talismans.csv",
+    "rows": 171,
+    "source": "https://www.gamerguides.com/monster-hunter-wilds/database/talismans"
+  }
+]

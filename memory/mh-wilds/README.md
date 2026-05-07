@@ -1,0 +1,67 @@
+# Monster Hunter Wilds Build Memory
+
+Last refreshed: 2026-05-06
+
+This folder is the local working memory for Monster Hunter Wilds weapon and armor buildcrafting. The data was scraped from Gamer Guides database pages and cross-checked against current guide/planner pages that mention Ver. 1.041 / 1.041.01 as the latest base-game data window.
+
+## Core Wilds Build Rules
+
+- Decorations are split by equipment type: armor decorations only go in armor slots, and weapon decorations only go in weapon slots.
+- Decoration slot size is 1-3. A decoration requires a slot of at least its listed size.
+- Weapon skills largely live on weapons and weapon decorations. Armor skills largely live on armor pieces, armor decorations, and talismans.
+- Wilds lets hunters carry two weapons, but weapon-native skills and weapon decorations only apply from the currently active weapon. Do not count the Seikret-carried / inactive weapon's decorations toward the active skill list.
+- Armor pieces can provide equipment skills plus group skills and set bonus skills. Group/set skills are build-defining but are not normal decorations.
+- Talismans are separate equipment and can carry skills without consuming weapon/armor slots. Ver. 1.021 added appraised random talismans from Glowing Stones for HR100+ 9-star quests.
+- Armor Transcendence, introduced later in the update cycle, can increase decoration slots on rarity 5/6 armor, so slot assumptions should account for whether a build is pre- or post-transcendence.
+
+## Files
+
+- `skills.csv`: Raw skill table, including equipment, food, group, and set bonus skills.
+- `skills_normalized.csv`: Cleaner skill lookup with max level and level descriptions.
+- `decorations_armor.csv`: Raw armor decoration table.
+- `decorations_armor_normalized.csv`: Armor decoration title, skill, required slot, rarity, price.
+- `decorations_weapon.csv`: Raw weapon decoration table.
+- `decorations_weapon_normalized.csv`: Weapon decoration title, skill, required slot, rarity, price.
+- `armor.csv`: Raw armor-piece table.
+- `armor_normalized.csv`: Armor title, set, rarity, skills, slot columns, materials, unlock notes.
+- `talismans.csv`: Raw talisman table.
+- `talismans_normalized.csv`: Talisman title, skills, rarity, HR, materials, unlock notes.
+- `skill_index.csv`: Derived lookup by skill. Use this first when answering "where can this skill go?"
+- `current_meta_notes.md`: Current Ver. 1.041 / TU4 base-game meta snapshot for weapons, armor engines, Gogma Artian priorities, and hard-quest heuristics.
+- `source_counts.json`: Source URLs and row counts from the refresh.
+
+## Quick Query Examples
+
+PowerShell examples from the repo root:
+
+```powershell
+Import-Csv memory\mh-wilds\skill_index.csv |
+  Where-Object Skill -eq 'Weakness Exploit' |
+  Format-List
+```
+
+```powershell
+Import-Csv memory\mh-wilds\decorations_weapon_normalized.csv |
+  Where-Object Skill -match 'Critical Eye|Attack Boost' |
+  Select-Object Title,Skill,SlotLevel,Rarity
+```
+
+```powershell
+Import-Csv memory\mh-wilds\armor_normalized.csv |
+  Where-Object Skills -match 'Flayer' |
+  Select-Object Title,ArmorSet,Rarity,Skills,Slot1,Slot2,Slot3
+```
+
+## Refresh Notes
+
+Use current sources before making meta claims, because Wilds had active balance and equipment updates through at least February 2026, and a large expansion has been announced for summer 2026 details.
+
+Sources used for this memory:
+
+- Gamer Guides database: skills, armor, talismans, armor decorations, weapon decorations.
+- Game8 patch/update pages: Ver. 1.041 and armor search support notes.
+- Mobalytics decoration/talisman guide and build planner: decoration type/slot rules and recent planner freshness.
+- RPG Site / Gematsu patch reporting: Ver. 1.021 talisman additions and Ver. 1.041 final base-game update context.
+- User in-game check, 2026-05-07: inactive secondary weapon decorations do not appear in the active skill list.
+
+Known caveat: `skill_index.csv` is a derived convenience file based on skill-name matching in the normalized scraped text. For exact material costs or edge cases involving multi-skill jewels, check the corresponding normalized decoration and armor CSVs.
