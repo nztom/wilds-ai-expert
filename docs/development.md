@@ -80,3 +80,13 @@ After running refresh tooling, inspect the diff before committing:
 ```powershell
 git diff -- memory/mh-wilds/armor.csv memory/mh-wilds/armor_normalized.csv
 ```
+
+## Memory Query Helpers
+
+Read-only helper scripts for common assistant lookups live in `tools/memory-query/`.
+
+```powershell
+.\tools\memory-query\Find-MHWildsSkillSource.ps1 -Skill "Weakness Exploit"
+.\tools\memory-query\Find-MHWildsMaterial.ps1 -Name "Ajarakan Scale"
+.\tools\memory-query\Get-MHWildsActiveSaveProfile.ps1
+```

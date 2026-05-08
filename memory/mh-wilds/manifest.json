@@ -1,0 +1,66 @@
+{
+  "freshness": {
+    "last_broad_refresh": "2026-05-08",
+    "last_patch_window": "base-game Title Update 4 plus Ver. 1.041 / 1.041.01",
+    "verify_current_for": [
+      "newer patches",
+      "event rotations",
+      "post-Ver. 1.041 balance changes",
+      "expansion content",
+      "contradictions from the user's game"
+    ]
+  },
+  "routes": {
+    "build_advice": [
+      "memory/mh-wilds/buildcrafting_notes.md",
+      "memory/mh-wilds/current_meta_notes.md",
+      "memory/mh-wilds/skill_index.csv"
+    ],
+    "skill_sources": [
+      "memory/mh-wilds/skill_index.csv",
+      "memory/mh-wilds/decorations_armor_normalized.csv",
+      "memory/mh-wilds/decorations_weapon_normalized.csv",
+      "memory/mh-wilds/armor_normalized.csv",
+      "memory/mh-wilds/talismans_normalized.csv"
+    ],
+    "materials": [
+      "memory/mh-wilds/material_locations.md",
+      "memory/mh-wilds/equipment_materials_normalized.csv"
+    ],
+    "monsters": [
+      "memory/mh-wilds/monster_field_guide.md"
+    ],
+    "fishing": [
+      "memory/mh-wilds/fishing_locations.md"
+    ],
+    "endemic_life": [
+      "memory/mh-wilds/endemic_life_locations.md"
+    ],
+    "side_quests": [
+      "memory/mh-wilds/side_quest_notes.md"
+    ],
+    "unlocks": [
+      "memory/mh-wilds/unlocks_and_special_items.md"
+    ],
+    "gogma_artian": [
+      "memory/mh-wilds/gogma_artian_notes.md",
+      "memory/mh-wilds/current_meta_notes.md",
+      "memory/mh-wilds/material_locations.md"
+    ],
+    "save_specific": [
+      "memory/private-save/save-inspection.config.json",
+      "memory/private-save/summaries/<active-copy-id>/*.csv"
+    ]
+  },
+  "helper_scripts": {
+    "active_save_profile": "tools/memory-query/Get-MHWildsActiveSaveProfile.ps1",
+    "skill_sources": "tools/memory-query/Find-MHWildsSkillSource.ps1",
+    "materials": "tools/memory-query/Find-MHWildsMaterial.ps1"
+  },
+  "private_save_rules": [
+    "Read only the active profile unless the user asks to switch or compare.",
+    "Read summary CSVs before JSON.",
+    "Do not open summary JSON or expanded dumps unless the user asks for deeper inspection.",
+    "Never operate on live Steam save paths."
+  ]
+}

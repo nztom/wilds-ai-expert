@@ -42,30 +42,14 @@ This folder is the local working memory for Monster Hunter Wilds buildcrafting, 
 - `unlocks_and_special_items.md`: Mantles, material gatherers, Palico skills, charms, hunting assistants, Great Hunts, and other functional side-quest unlocks.
 - `save_inspection_workflow.md`: Safe, read-only workflow for copying MH Wilds saves, producing expanded private JSON dumps, and deriving compact resolved JSON/CSV summaries.
 - `source_counts.json`: Source URLs and row counts from the refresh.
+- `manifest.json`: Compact routing map for agents and query helpers.
+- `query_recipes.md`: Optional examples for targeted CSV lookups.
 
 Private save profile selection lives outside this folder in ignored `memory/private-save/save-inspection.config.json`. Check it before using private save summaries so multiple copied saves or character slots do not get blended.
 
 ## Quick Query Examples
 
-PowerShell examples from the repo root:
-
-```powershell
-Import-Csv memory\mh-wilds\skill_index.csv |
-  Where-Object Skill -eq 'Weakness Exploit' |
-  Format-List
-```
-
-```powershell
-Import-Csv memory\mh-wilds\decorations_weapon_normalized.csv |
-  Where-Object Skill -match 'Critical Eye|Attack Boost' |
-  Select-Object Title,Skill,SlotLevel,Rarity
-```
-
-```powershell
-Import-Csv memory\mh-wilds\armor_normalized.csv |
-  Where-Object Skills -match 'Flayer' |
-  Select-Object Title,ArmorSet,Rarity,Skills,Slot1,Slot2,Slot3
-```
+Use `tools/memory-query/` for common lookups. More examples live in `query_recipes.md`.
 
 ## Refresh Notes
 

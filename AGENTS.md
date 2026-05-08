@@ -39,15 +39,13 @@ For PowerShell 7, Git submodule, Rust/Cargo, and script-running prerequisites, r
 
 ## Default Research Flow
 
-1. Read `memory/mh-wilds/README.md`, `buildcrafting_notes.md`, and `current_meta_notes.md` for session context.
-2. For build questions, use `skill_index.csv` first to locate whether a skill comes from armor decorations, weapon decorations, armor pieces, or talismans, then confirm in the normalized CSVs. Use `armor_normalized.csv` `SkillDetails` for exact armor-piece skill levels when present.
-3. For material, monster, fishing, endemic-life, side-quest, or unlock questions, use the corresponding markdown note first, then verify edge cases in CSVs or current sources.
-4. Use `memory/private-save/` only for user-specific save/build/progression facts; do not put private save facts in public memory files.
-5. For save inspection, read `memory/mh-wilds/save_inspection_workflow.md` first and follow its safety and interpretation workflow.
-6. For save-specific answers, read `memory/private-save/save-inspection.config.json` when present, use its `active_profile_id`, and only read files from that profile's `dump_dir`, `summary_dir`, and `active_character_slot_index` unless the user explicitly asks to switch profiles.
-7. When resolved save summaries are available for the active profile, read the CSV files from the summary dir root (e.g., `*-summary.csv`, `profile-summary.csv`) and answer from those. Do not open the `json/` subfolder automatically. If the CSVs do not contain enough detail to fully answer the question, answer with what the CSVs do show and note at the end that additional detail may be available in the JSON files — but wait for the user to ask before reading them. Ground user-specific advice in that actual save data before making assumptions about owned gear, decorations, item stock, captured endemic life, fishing records, quest progress, or unlocked systems.
-8. Use web research when the question is about the latest patch/meta/event content, or when local memory is stale, incomplete, or contradicted by the user's in-game evidence.
-9. After verifying a meaningful new general fact, update or add a concise note under `memory/mh-wilds/` with the source and refresh date. If the update is structured public data, prefer a repeatable helper under `tools/knowledge-refresh/` instead of embedding one-off logic in save-inspection tooling.
+1. Use `memory/mh-wilds/manifest.json` as the quick routing map when the right source is not obvious.
+2. For build questions, read `buildcrafting_notes.md` and `current_meta_notes.md`, then use `skill_index.csv` or `tools/memory-query/Find-MHWildsSkillSource.ps1` for skill sources. Confirm edge cases in normalized CSVs.
+3. For material, monster, fishing, endemic-life, side-quest, or unlock questions, use the matching topic note first, then verify edge cases in CSVs or current sources.
+4. For save-specific answers, read the active profile from `memory/private-save/save-inspection.config.json` or run `tools/memory-query/Get-MHWildsActiveSaveProfile.ps1`, then use summary CSVs from that profile only.
+5. Do not open private summary JSON or expanded dumps unless the CSVs are insufficient and the user asks for deeper inspection.
+6. Use web research for latest patch/meta/event content, stale local memory, or contradictions from the user's in-game evidence.
+7. Store verified general facts under `memory/mh-wilds/`; store user-specific save/build/progression facts only under ignored `memory/private-save/`.
 
 ## Build Advice Principles
 
