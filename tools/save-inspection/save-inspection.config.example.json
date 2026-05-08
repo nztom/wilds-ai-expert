@@ -1,0 +1,23 @@
+{
+  "active_profile_id": "copy-id-slot0",
+  "profiles": [
+    {
+      "profile_id": "copy-id-slot0",
+      "description": "Human-readable label for this copied save and character slot.",
+      "game": "MHWILDS",
+      "steam_id64": "<steamid64>",
+      "copy_id": "data001Slot-YYYYMMDD-HHMMSS",
+      "save_copy_path": "memory/private-save/raw/data001Slot-YYYYMMDD-HHMMSS.bin",
+      "dump_dir": "memory/private-save/dumps/data001Slot-YYYYMMDD-HHMMSS",
+      "summary_dir": "memory/private-save/summaries/data001Slot-YYYYMMDD-HHMMSS",
+      "active_character_slot_index": 0,
+      "slot_count": 3,
+      "source_profile_summary": "memory/private-save/summaries/data001Slot-YYYYMMDD-HHMMSS/profile-summary.json",
+      "notes": [
+        "Slot indexes are zero-based: slot 0 is the first in-game character slot.",
+        "Do not mix files from another copy_id into this profile.",
+        "Do not store or operate on a live Steam save path here."
+      ]
+    }
+  ]
+}

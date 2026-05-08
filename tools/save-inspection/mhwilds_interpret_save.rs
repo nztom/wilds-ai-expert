@@ -332,14 +332,15 @@ fn extract_quest_record(
     Some(class_to_json_full(quest_record, type_map, crc_map, 0, 3))
 }
 
-// max_depth=3: _DeliveryBounty fields(0) → bounty arrays(1) → entry class(2) → entry fields(3)
+// max_depth=5: _DeliveryBounty fields(0) → bounty arrays(1) → entry class(2) → nested
+// _Data class(3) → nested arrays/classes(4) → entry fields(5)
 fn extract_delivery_bounty(
     slot: &Class,
     type_map: &TypeMap,
     crc_map: &HashMap<u32, &TypeInfo>,
 ) -> Option<Value> {
     let delivery_bounty = get_field(slot, &["_DeliveryBounty"]).and_then(as_class)?;
-    Some(class_to_json_full(delivery_bounty, type_map, crc_map, 0, 3))
+    Some(class_to_json_full(delivery_bounty, type_map, crc_map, 0, 5))
 }
 
 // max_depth=3: _Camp fields(0) → camp arrays(1) → entry class(2) → entry fields(3)

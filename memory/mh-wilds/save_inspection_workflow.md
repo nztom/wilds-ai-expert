@@ -2,7 +2,7 @@
 
 Last updated: 2026-05-08
 
-This note documents the read-only workflow for interpreting a Monster Hunter Wilds save with the `tools/ree-save-editor/` submodule. Keep user-specific copied saves, dumps, and interpreted outputs under ignored `memory/private-save/`; keep only general process notes here.
+This note documents the read-only workflow for interpreting a Monster Hunter Wilds save with the `tools/ree-save-editor/` submodule. Keep user-specific copied saves, expanded JSON dumps, compact summaries, CSVs, and interpreted outputs under ignored `memory/private-save/`; keep only general process notes here.
 
 ## Safety Rules
 
@@ -10,6 +10,8 @@ This note documents the read-only workflow for interpreting a Monster Hunter Wil
 - Never write to Steam userdata, Steam Cloud, a Steam library, or the MH Wilds app ID `2246340` save paths.
 - First copy the live save into `memory/private-save/raw/`, then read only that copy.
 - Write all dumps under `memory/private-save/dumps/`.
+- Write compact derived summaries under `memory/private-save/summaries/`.
+- Track the active copied save and zero-based character slot in ignored `memory/private-save/save-inspection.config.json`.
 - Do not run account transfer, slot transfer, resign, repack, save, or editor write operations unless the user explicitly asks and reconfirms the destination path.
 - Keep Cargo cache and build output inside this repo:
 
@@ -34,9 +36,35 @@ steamid64 = 76561197960265728 + steam-account-id
 
 `data001Slot.bin` contains character-slot data: hunter basics, item storage, equipment, charms, Artian parts, monster/endemic/fishing records, and many progression flags.
 
-## Basic Dump
+## Active Save Profile Config
 
-Update/build the submodule tooling first, following the repo rules:
+Use this ignored config to avoid blending data from multiple copied saves:
+
+```text
+memory/private-save/save-inspection.config.json
+```
+
+The tracked schema example is:
+
+```text
+tools/save-inspection/save-inspection.config.example.json
+```
+
+Each profile binds one copied raw save to its matching dump folder, summary folder, SteamID, and zero-based character slot index:
+
+- `active_profile_id`: the profile future sessions should use by default.
+- `profile_id`: stable label for one copied save plus one character slot, for example `data001Slot-YYYYMMDD-HHMMSS-slot0`.
+- `copy_id`: folder/file stem shared by raw copy, dump dir, and summary dir.
+- `save_copy_path`: copied save under `memory/private-save/raw/`.
+- `dump_dir`: expanded JSON output for this copy.
+- `summary_dir`: compact resolved JSON/CSV output for this copy.
+- `active_character_slot_index`: zero-based in-game character slot to answer from.
+
+When the user asks to switch saves or character slots, add or select a different profile and update `active_profile_id`. Do not reuse a dump or summary folder across profiles, and do not combine profile data unless the user explicitly asks for a comparison.
+
+## Optional Low-Level Validation
+
+`ree-dump` is useful for low-level validation/decryption, but the normal workflow uses the tracked helper runner instead. To build `ree-dump`, update/build the submodule tooling first, following the repo rules:
 
 ```powershell
 git -C tools\ree-save-editor submodule update --init --recursive
@@ -53,7 +81,7 @@ New-Item -ItemType Directory -Force memory\private-save\raw
 Copy-Item -LiteralPath '<live data001Slot.bin path>' -Destination 'memory\private-save\raw\data001Slot-YYYYMMDD-HHMMSS.bin'
 ```
 
-Run `ree-dump` against the copied save:
+Run `ree-dump` against the copied save when you only need validation/decryption checks:
 
 ```powershell
 Push-Location tools\ree-save-editor
@@ -69,7 +97,7 @@ Expected success signs:
 - `[Key/IV check] block N: passed`
 - `[Checksum] block N: passed`
 
-Current caveat: `ree-dump --save-file` appears unused in the CLI path, and the `.bin` save JSON writer in `src/file/mod.rs` is commented out. Use `-f` to validate/decrypt, then use a helper binary for structured interpretation.
+Current caveat: `ree-dump --save-file` appears unused in the CLI path, and the `.bin` save JSON writer in `src/file/mod.rs` is commented out. Use `-f` to validate/decrypt only, then use the helper runner below for structured interpretation.
 
 ## Interpreting Hashes
 
@@ -111,6 +139,7 @@ The repo keeps helper source outside the submodule:
 ```text
 tools/save-inspection/mhwilds_interpret_save.rs
 tools/save-inspection/Invoke-MHWildsSaveInterpretation.ps1
+tools/save-inspection/Summarize-MHWildsSaveDump.ps1
 ```
 
 The PowerShell runner temporarily copies the helper into:
@@ -139,6 +168,19 @@ Run it with:
   -OutDir .\memory\private-save\dumps\data001Slot-YYYYMMDD-HHMMSS
 ```
 
+Then run the summary/CSV pass:
+
+```powershell
+.\tools\save-inspection\Summarize-MHWildsSaveDump.ps1 `
+  -DumpDir .\memory\private-save\dumps\data001Slot-YYYYMMDD-HHMMSS
+```
+
+The summary pass writes to `memory/private-save/summaries/<copy-id>/` by default. Use it for normal inspection questions, then return to the expanded dump files only when adding a new interpretation rule. It removes old `.json` and `.csv` files in the selected summary directory before writing fresh output.
+
+The summary pass resolves display names from the local Wilds assets in the submodule by default. Use `-NoResolveNames` when a fast internal-ID-only pass is enough.
+
+After a successful interpretation and summary pass, update `memory/private-save/save-inspection.config.json` so the active profile points at the copied save, generated dump dir, generated summary dir, SteamID, and intended character slot.
+
 ## Output Files
 
 The helper writes one summary file plus targeted files per character slot (slot index is zero-based). Targeted files are written for each slot where the corresponding save path resolves.
@@ -157,7 +199,7 @@ Before each run, `Invoke-MHWildsSaveInterpretation.ps1` removes its known genera
 - `slot*-delivery-bounty.json`
 - `slot*-camp.json`
 
-This prevents stale slot files from surviving when a later run resolves fewer paths.
+This prevents stale slot files from surviving when a later run resolves fewer paths. If you want a fully clean private output tree, remove only repo-local ignored `memory/private-save/dumps/` and `memory/private-save/summaries/`, leaving `memory/private-save/raw/` intact unless the user explicitly asks to delete copied raw saves.
 
 ### `interpreted-summary.json`
 
@@ -187,7 +229,7 @@ Use this file to read the hunter's full equipment storage including slotted deco
 
 ### `slot{N}-item-box.json`
 
-Full item box for slot N. Path: `_Item → _BoxItem`. Expanded to max_depth=2 with no array truncation. Item entries are expected to be simple (ItemId, Num); depth 2 is sufficient. Use this file to read the complete item storage.
+Full item box for slot N. Path: `_Item → _BoxItem`. Expanded to max_depth=2 with no array truncation. Item entries are expected to be simple (ItemId, Num); depth 2 is sufficient. Use this file to read the complete item storage. Prefer `slotN-inventory-summary.csv` for normal inventory questions because it resolves item enum keys and English display names.
 
 ### `slot{N}-mission.json`
 
@@ -199,11 +241,11 @@ Full endemic-life capture state for slot N. Path: `_Animal`. The entire `_Animal
 
 ### `slot{N}-fish-captures.json`
 
-Full fish capture/report state for slot N. Path: `_EnemyReport → _AnimalFishing`. The `_AnimalFishing` array is expanded to max_depth=3 with no array truncation. Use this file to determine which fish have been caught and fishing report progress once fish IDs are cross-referenced against game data.
+Full fish capture/report state for slot N. Path: `_EnemyReport → _AnimalFishing`. The `_AnimalFishing` array is expanded to max_depth=3 with no array truncation. Use this file to determine which fish have been caught and fishing report progress. Prefer `slotN-fishing-summary.csv` for normal questions because it resolves fish enum keys and English display names.
 
 ### `slot{N}-monster-report.json`
 
-Full monster report state for slot N. Path: `_EnemyReport`. The entire `_EnemyReport` class is expanded to max_depth=3 with no array truncation. Use this file to inspect large monster, small monster, endemic, and fishing report records together.
+Full monster report state for slot N. Path: `_EnemyReport`. The entire `_EnemyReport` class is expanded to max_depth=3 with no array truncation. Use this file to inspect large monster, small monster, endemic, and fishing report records together. Prefer `slotN-monster-report-summary.csv` for normal questions because it resolves monster/endemic/fish enum keys and English display names.
 
 ### `slot{N}-story.json`
 
@@ -215,7 +257,7 @@ Quest record state for slot N. Path: `_QuestRecord`. The `_QuestRecord` class is
 
 ### `slot{N}-delivery-bounty.json`
 
-Delivery bounty state for slot N. Path: `_DeliveryBounty`. The `_DeliveryBounty` class is expanded to max_depth=3 with no array truncation. Use this file to inspect delivery-style unlock progress and bounty state.
+Delivery bounty state for slot N. Path: `_DeliveryBounty`. The `_DeliveryBounty` class is expanded to max_depth=5 with no array truncation. Use this file to inspect delivery-style unlock progress and bounty state.
 
 ### `slot{N}-camp.json`
 
@@ -230,12 +272,33 @@ The Rust source has two function families:
 
 Both families share `value_preview`, `field_info`, `type_name`, `get_field`, and `array_classes`. To add a new targeted extraction, write an `extract_*` function using the full family, call it inside the per-slot loop in `main`, and write its output with `write_json`.
 
+## Third-Pass Summaries
+
+`Summarize-MHWildsSaveDump.ps1` converts expanded dump JSON into smaller, private, queryable files under `memory/private-save/summaries/<copy-id>/`:
+
+- `profile-summary.json` and `.csv`: active slots and visible profile/presence fields.
+- `slotN-inventory-summary.json` and `.csv`: nonzero item-box entries with item IDs, enum keys, resolved item names, and quantities.
+- `slotN-fishing-summary.json` and `.csv`: observed fish records and capture counts with resolved fish names.
+- `slotN-monster-report-summary.json` and `.csv`: observed monster/endemic/fish report records with resolved names.
+- `slotN-endemic-summary.json` and `.csv`: endemic capture entries grouped by resolved `EmId`, with resolved names.
+- `slotN-story-summary.json`, `slotN-mission-summary.json`, `slotN-quest-record-summary.json`, `slotN-delivery-bounty-summary.json`, `slotN-camp-summary.json`: scalar fields plus nonzero array entries.
+- `slotN-equip-summary.json`: equipment-box entries reduced to nonzero scalar fields.
+
+This layer is best for quick answers about the user's save. The expanded `dumps/` JSON remains the source of truth when a summary is too lossy. Empty slot CSVs can be tiny blank files when a slot has no rows for that table.
+
+Name resolution uses the submodule assets:
+
+- `enumsmhwilds.json`: fixed IDs -> enum keys such as `ITEM_0000` or `EM5317_09_0`.
+- `enums_mappings_mhwilds.json`: item enum keys -> message GUIDs.
+- `combined_msgs.json`: English message strings, including `EnemyText_NAME_<enum>` entries for monsters, fish, and endemic life.
+
 ## Sanity Checks
 
 After interpretation:
 
 ```powershell
 Get-ChildItem memory\private-save\dumps\<copy-id>
+Get-ChildItem memory\private-save\summaries\<copy-id>
 git status --short --ignored
 ```
 
@@ -284,6 +347,10 @@ slot2-camp.json
 
 Inactive/default slots can still have save containers, so targeted files may be written for all three slots even when only one slot is active.
 
+Expected summary outputs include `index.json`, `profile-summary.json`, `profile-summary.csv`, per-slot JSON summaries, and CSVs for inventory, fishing, monster report, and endemic captures.
+
+Also verify `memory/private-save/save-inspection.config.json` points at the intended `copy_id`, `summary_dir`, and `active_character_slot_index`.
+
 ## Current Known Result Shape
 
 ### interpreted-summary.json
@@ -303,7 +370,7 @@ Inactive/default slots can still have save containers, so targeted files may be 
 ### slot{N}-item-box.json
 
 - Array of item entry classes, each with item ID and quantity.
-- Cross-reference item IDs against game data to identify materials, consumables, and ammo.
+- `slotN-inventory-summary.csv` resolves item IDs into enum keys and English display names where possible.
 
 ### slot{N}-mission.json
 
@@ -318,12 +385,14 @@ Inactive/default slots can still have save containers, so targeted files may be 
 ### slot{N}-fish-captures.json
 
 - `_EnemyReport._AnimalFishing` array with all report entries fully expanded.
-- Contains fishing capture/report state. Cross-reference fish IDs against game data to identify each species.
+- Contains fishing capture/report state.
+- `slotN-fishing-summary.csv` resolves fish IDs into enum keys and English display names where possible.
 
 ### slot{N}-monster-report.json
 
 - `_EnemyReport` class with monster, endemic, and fishing report arrays fully expanded.
-- Contains large monster and small monster record state. Cross-reference IDs against game data to identify each species.
+- Contains large monster and small monster record state.
+- `slotN-monster-report-summary.csv` resolves monster, endemic, and fish IDs into enum keys and English display names where possible.
 
 ### slot{N}-story.json
 

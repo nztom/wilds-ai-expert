@@ -40,8 +40,10 @@ This folder is the local working memory for Monster Hunter Wilds buildcrafting, 
 - `monster_field_guide.md`: Compact large-monster locations, elemental weaknesses, break targets, and hunt notes.
 - `side_quest_notes.md`: Walkthrough notes for side quests with non-obvious objectives.
 - `unlocks_and_special_items.md`: Mantles, material gatherers, Palico skills, charms, hunting assistants, Great Hunts, and other functional side-quest unlocks.
-- `save_inspection_workflow.md`: Safe, read-only workflow for copying, dumping, and interpreting MH Wilds saves into ignored private output.
+- `save_inspection_workflow.md`: Safe, read-only workflow for copying MH Wilds saves, producing expanded private JSON dumps, and deriving compact resolved JSON/CSV summaries.
 - `source_counts.json`: Source URLs and row counts from the refresh.
+
+Private save profile selection lives outside this folder in ignored `memory/private-save/save-inspection.config.json`. Check it before using private save summaries so multiple copied saves or character slots do not get blended.
 
 ## Quick Query Examples
 

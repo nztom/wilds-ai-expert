@@ -23,7 +23,7 @@ This repository is the local memory and working context for a Monster Hunter Wil
 
 The repo is a Monster Hunter Wilds knowledge base plus optional read-only save-inspection tooling:
 
-- `README.md`: public overview of the repo, freshness window, private-save boundary, and `ree-dump` build workflow.
+- `README.md`: public overview of the repo, freshness window, private-save boundary, and save-inspection workflow.
 - `AGENTS.md`: operating instructions for the assistant.
 - `memory/mh-wilds/README.md`: start here. It explains the memory folder, current refresh date, build rules, file meanings, query examples, sources, and caveats.
 - `memory/mh-wilds/buildcrafting_notes.md`: general buildcrafting heuristics by skill family and weapon type.
@@ -44,9 +44,10 @@ The repo is a Monster Hunter Wilds knowledge base plus optional read-only save-i
 - `memory/mh-wilds/equipment_materials.csv` and `equipment_materials_normalized.csv`: equipment material data.
 - `memory/mh-wilds/skill_index.csv`: derived lookup by skill. Use this first for "where can I get this skill?" questions, then confirm edge cases in the normalized source files.
 - `memory/mh-wilds/source_counts.json`: source URLs and row counts from the latest data refresh.
-- `memory/private-save/`: ignored local-only folder for save-specific notes, copied saves, dumps, and interpreted private summaries.
-- `tools/ree-save-editor/`: Git submodule for RE Engine save tooling. Prefer its `ree-dump` binary for read-only copied-save inspection; do not use it to write to live saves.
-- `tools/save-inspection/`: repo-owned read-only save interpretation helpers. The runner temporarily stages helper source into the submodule, writes interpreted summaries under `memory/private-save/`, and removes the temporary submodule file.
+- `memory/private-save/`: ignored local-only folder for save-specific notes, copied raw saves, expanded JSON dumps, and compact resolved summaries/CSVs.
+- `memory/private-save/save-inspection.config.json`: ignored active-save profile config. Read this before answering save-specific questions so copied saves, dump folders, summary folders, and character slot indexes do not get blended.
+- `tools/ree-save-editor/`: Git submodule for RE Engine save tooling. Use it only for read-only copied-save inspection unless the user gives a narrower explicit instruction; do not use it to write to live saves.
+- `tools/save-inspection/`: repo-owned read-only save interpretation helpers. The runner temporarily stages helper source into the submodule, writes expanded JSON dumps under `memory/private-save/dumps/`, and removes the temporary submodule file. The summarizer writes compact JSON/CSV summaries under `memory/private-save/summaries/`. `save-inspection.config.example.json` documents the private config schema.
 
 ## Default Research Flow
 
@@ -55,8 +56,9 @@ The repo is a Monster Hunter Wilds knowledge base plus optional read-only save-i
 3. For material, monster, fishing, endemic-life, side-quest, or unlock questions, use the corresponding markdown note first, then verify edge cases in CSVs or current sources.
 4. Use `memory/private-save/` only for user-specific save/build/progression facts; do not put private save facts in public memory files.
 5. For save inspection, read `memory/mh-wilds/save_inspection_workflow.md` first and follow its safety and interpretation workflow.
-6. Use web research when the question is about the latest patch/meta/event content, or when local memory is stale, incomplete, or contradicted by the user's in-game evidence.
-7. After verifying a meaningful new general fact, update or add a concise note under `memory/mh-wilds/` with the source and refresh date.
+6. For save-specific answers, read `memory/private-save/save-inspection.config.json` when present, use its `active_profile_id`, and only read files from that profile's `dump_dir`, `summary_dir`, and `active_character_slot_index` unless the user explicitly asks to switch profiles.
+7. Use web research when the question is about the latest patch/meta/event content, or when local memory is stale, incomplete, or contradicted by the user's in-game evidence.
+8. After verifying a meaningful new general fact, update or add a concise note under `memory/mh-wilds/` with the source and refresh date.
 
 ## Build Advice Principles
 
@@ -91,9 +93,11 @@ The repo is a Monster Hunter Wilds knowledge base plus optional read-only save-i
 - Never write to any Steam library, Steam userdata directory, Steam Cloud directory, or game install directory.
 - Never write to the Monster Hunter Wilds save directory or any file under a path matching Steam userdata for app ID `2246340`, including `remote/win64_save`, `data001Slot.bin`, or `data00-1.bin`.
 - Any save-inspection workflow must first copy the save into an ignored location inside this repo, such as `memory/private-save/raw/`, then operate only on that copy.
-- Dumped save data must go under `memory/private-save/dumps/`, and interpreted private notes must go under `memory/private-save/`.
+- Expanded save dumps must go under `memory/private-save/dumps/`; compact derived summaries and human-readable CSVs must go under `memory/private-save/summaries/`; any manual user-specific save notes must stay under `memory/private-save/`.
+- Keep `memory/private-save/save-inspection.config.json` up to date when creating or switching copied saves. A profile should bind one copied raw save to its matching dump dir, summary dir, SteamID, and zero-based character slot index. Do not combine rows or conclusions across profiles unless the user asks for a comparison.
 - Prefer read-only dump tooling such as `ree-dump` over GUI save editing. Do not run account transfer, resign, repack, save, or editor write operations unless the user explicitly requests that exact operation and reconfirms the destination path.
 - The `tools/ree-save-editor/` submodule exists to support this read-only workflow. Build or run only the parts needed for dumping copied saves unless the user gives a narrower explicit instruction.
-- Prefer `tools/save-inspection/Invoke-MHWildsSaveInterpretation.ps1` for interpreted summaries; it keeps the helper source tracked in this repo while leaving the submodule clean after each run.
+- Prefer `tools/save-inspection/Invoke-MHWildsSaveInterpretation.ps1` for expanded JSON interpretation; it keeps the helper source tracked in this repo while leaving the submodule clean after each run.
+- Prefer `tools/save-inspection/Summarize-MHWildsSaveDump.ps1` for normal save questions after a dump exists. It resolves item, monster, endemic-life, and fish names from local Wilds assets and emits CSVs alongside JSON. Use `-NoResolveNames` only when internal IDs are enough or speed matters.
 - Always update `tools/ree-save-editor/` from its configured branch before building it.
 - When building submodule tooling, keep dependency caches and build outputs inside this repository, for example with `CARGO_HOME` set to `.cargo-home/` and `CARGO_TARGET_DIR` set to `.cargo-target/`.

@@ -5,7 +5,9 @@ These helpers support read-only Monster Hunter Wilds save interpretation without
 ## Files
 
 - `mhwilds_interpret_save.rs`: tracked Rust helper source that is temporarily staged into the `ree-save-editor` Cargo workspace.
-- `Invoke-MHWildsSaveInterpretation.ps1`: copies the helper into the submodule, runs it against an already-copied save, then removes the temporary source.
+- `Invoke-MHWildsSaveInterpretation.ps1`: updates the submodule, copies the helper into the submodule, runs it against an already-copied save, writes expanded JSON dumps, then removes the temporary source.
+- `Summarize-MHWildsSaveDump.ps1`: reads the expanded private JSON dump and writes compact private summaries for inventory, monsters, endemic life, fishing, progression, camps, deliveries, and equipment.
+- `save-inspection.config.example.json`: tracked schema example for the ignored active-save profile config at `memory/private-save/save-inspection.config.json`.
 
 ## Usage
 
@@ -20,6 +22,23 @@ First copy the live save into `memory/private-save/raw/`; never run this against
 
 The script updates the submodule before building, uses repo-local Cargo cache/output directories, and writes all output files to the private output directory.
 Before each run, the script removes its known generated files from the selected output directory so stale slot files cannot survive from an older dump.
+
+After interpretation, create the smaller working summaries:
+
+```powershell
+.\tools\save-inspection\Summarize-MHWildsSaveDump.ps1 `
+  -DumpDir .\memory\private-save\dumps\data001Slot-YYYYMMDD-HHMMSS
+```
+
+By default, summaries are written to `memory\private-save\summaries\<copy-id>\`. The script also resolves item, monster, endemic-life, and fish names from the local Wilds assets in the `ree-save-editor` submodule. Use `-NoResolveNames` for a faster internal-ID-only pass.
+
+After creating or switching a copied save, update the private config:
+
+```text
+memory/private-save/save-inspection.config.json
+```
+
+Use one profile per copied save and character slot. `active_profile_id` selects the profile future sessions should use by default; each profile binds a `save_copy_path`, `dump_dir`, `summary_dir`, `steam_id64`, and zero-based `active_character_slot_index`. Do not reuse a dump or summary folder across profiles.
 
 ## Output Files
 
@@ -36,7 +55,7 @@ The helper writes one summary file plus targeted files per character slot. Targe
 | `slot{N}-monster-report.json` | Full monster report state for slot N — `_EnemyReport` expanded to depth 3 with no array truncation | Per slot |
 | `slot{N}-story.json` | Story progression state for slot N — `_Story` expanded to depth 3 with no array truncation | Per slot |
 | `slot{N}-quest-record.json` | Quest record state for slot N — `_QuestRecord` expanded to depth 3 with no array truncation | Per slot |
-| `slot{N}-delivery-bounty.json` | Delivery bounty state for slot N — `_DeliveryBounty` expanded to depth 3 with no array truncation | Per slot |
+| `slot{N}-delivery-bounty.json` | Delivery bounty state for slot N — `_DeliveryBounty` expanded to depth 5 with no array truncation | Per slot |
 | `slot{N}-camp.json` | Camp unlock/placement state for slot N — `_Camp` expanded to depth 3 with no array truncation | Per slot |
 
 Slot index N is zero-based (slot 0 = first character slot).
@@ -51,3 +70,35 @@ The Rust source has two function families:
 In both families, scalar values (strings, integers, booleans, enums) are always emitted as their actual value regardless of depth. The depth limit only gates recursion into `Class` and `Array` nodes; when exceeded, those nodes collapse to a shape-only preview (`kind`, `len`, `hash`, `num_fields`).
 
 To adjust extraction depth, edit the `max_depth` literal in the relevant `extract_*` function in `mhwilds_interpret_save.rs`.
+
+## Summary Pass
+
+`Summarize-MHWildsSaveDump.ps1` is the preferred layer for normal questions. It keeps private data ignored, but converts the expanded JSON into smaller files that are easier to inspect directly. It removes old `.json` and `.csv` outputs from the selected summary directory before writing fresh files.
+
+| File | Content |
+|---|---|
+| `index.json` | Source dump path, output path, generation time, and generated file list |
+| `profile-summary.json` | Slot activity and visible profile/presence fields from `interpreted-summary.json` |
+| `profile-summary.csv` | CSV form of slot activity and visible profile/presence fields |
+| `slot{N}-inventory-summary.json` | Nonzero item-box entries with item IDs and quantities |
+| `slot{N}-inventory-summary.csv` | CSV form of inventory entries, with item enum/name resolved where possible |
+| `slot{N}-fishing-summary.json` | Fish records with observed state or capture counts |
+| `slot{N}-fishing-summary.csv` | CSV form of fish records, with fish enum/name resolved where possible |
+| `slot{N}-monster-report-summary.json` | Observed boss, small-monster, endemic, and fish report rows |
+| `slot{N}-monster-report-summary.csv` | CSV form of report rows, with monster/endemic/fish enum/name resolved where possible |
+| `slot{N}-endemic-summary.json` | Captured endemic entries grouped by resolved endemic ID |
+| `slot{N}-endemic-summary.csv` | CSV form of grouped endemic captures, with endemic enum/name resolved where possible |
+| `slot{N}-story-summary.json` | Story scalar values and nonzero arrays/bitsets |
+| `slot{N}-mission-summary.json` | Mission scalar values and nonzero arrays/bitsets |
+| `slot{N}-quest-record-summary.json` | Quest-record scalar values and nonzero arrays |
+| `slot{N}-delivery-bounty-summary.json` | Delivery/bounty scalar values and nonzero arrays |
+| `slot{N}-camp-summary.json` | Camp scalar values and nonzero arrays |
+| `slot{N}-equip-summary.json` | Equipment-box entries reduced to nonzero scalar fields |
+
+Use the expanded dump files when the summary omits a field needed for a new interpretation rule.
+Empty slot CSVs are intentionally written as tiny blank files when a slot has no rows for that table.
+
+Name resolution path:
+
+- Items: `enumsmhwilds.json` maps fixed item IDs to enum keys; `enums_mappings_mhwilds.json` maps those keys to message GUIDs; `combined_msgs.json` provides the English display string.
+- Monsters, fish, and endemic life: `enumsmhwilds.json` maps fixed enemy IDs to enum keys; `combined_msgs.json` provides `EnemyText_NAME_<enum>` English display strings.
