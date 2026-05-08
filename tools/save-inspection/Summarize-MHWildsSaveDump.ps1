@@ -154,12 +154,29 @@ function Initialize-NameResolver {
         }
     }
 
+    # Build hash-suffix -> English name for decorations.
+    # Messages use names like "Accessory_ACC_<hash>" where negative hashes are encoded as "m<abs>".
+    $accessoryHashToName = @{}
+    foreach ($message in $messageMap.Values) {
+        $messageName = Get-ObjectPropertyValue $message "name"
+        if ($messageName -and $messageName.StartsWith("Accessory_ACC_")) {
+            $hashSuffix = $messageName.Substring("Accessory_ACC_".Length)
+            $english = Get-EnglishMessage $message
+            if ($english) {
+                $accessoryHashToName[$hashSuffix] = $english
+            }
+        }
+    }
+
     return [pscustomobject]@{
         enums = $enums
         mappings = $mappings
         item_fixed_enum = $itemFixedEnum
         enemy_fixed_enum = $enemyFixedEnum
         item_message_map = $itemMessageMap
+        accessory_id_enum = (Get-ObjectPropertyValue $enums "app.EquipDef.ACCESSORY_ID")
+        accessory_fixed_enum = (Get-ObjectPropertyValue $enums "app.EquipDef.ACCESSORY_ID_Fixed")
+        accessory_hash_to_name = $accessoryHashToName
         messages = $messageMap
         enemy_names = $enemyNames
     }
@@ -252,6 +269,27 @@ function Resolve-EnemyId {
         enemy_enum = $enumName
         name = $name
     }
+}
+
+function Resolve-AccessoryId {
+    param(
+        $Resolver,
+        $Id
+    )
+
+    if ($null -eq $Resolver -or $null -eq $Id -or $null -eq $Resolver.accessory_id_enum) {
+        return $null
+    }
+
+    $enumName = Get-ObjectPropertyValue $Resolver.accessory_id_enum ([string]$Id)
+    if (-not $enumName) { return $null }
+
+    $hash = Get-ObjectPropertyValue $Resolver.accessory_fixed_enum $enumName
+    if ($null -eq $hash) { return $null }
+
+    # Negative hashes are encoded in message names as "m<abs>" instead of "-<abs>".
+    $hashSuffix = if ([int64]$hash -lt 0) { "m$([math]::Abs([int64]$hash))" } else { [string]$hash }
+    return $Resolver.accessory_hash_to_name[$hashSuffix]
 }
 
 function Convert-MapToString {
@@ -527,7 +565,15 @@ function Convert-EquipEntryToRow {
     $bonusByGrinding = Convert-ScalarValue (Get-FieldValue -Class $Entry -Name "BonusByGrinding")
     $grindingNum = Convert-ScalarValue (Get-FieldValue -Class $Entry -Name "GrindingNum")
     $customizeIds = Convert-IdArrayToString (Get-FieldValue -Class $Entry -Name "BowgunCustomizeId")
+    $decorationIdRaw = Get-ArrayValues (Get-FieldValue -Class $Entry -Name "EquipmentAccessoryIdArray")
     $decorationIds = Convert-IdArrayToString (Get-FieldValue -Class $Entry -Name "EquipmentAccessoryIdArray")
+    $decorationIdFilled = @($decorationIdRaw | Where-Object { $null -ne $_ -and [int64]$_ -ne -1 })
+    $decorationNames = if ($decorationIdFilled.Count -gt 0) {
+        ($decorationIdFilled | ForEach-Object {
+            $n = Resolve-AccessoryId $Resolver (Convert-ScalarValue $_)
+            if ($n) { $n } else { Convert-ScalarValue $_ }
+        }) -join ";"
+    } else { "" }
 
     $hasScalarData = @($freeVal0, $freeVal1, $freeVal2, $freeVal3, $freeVal4, $freeVal5, $bonusByCreating, $bonusByGrinding, $grindingNum) |
         Where-Object { $null -ne $_ -and [int64]$_ -ne 0 }
@@ -594,6 +640,7 @@ function Convert-EquipEntryToRow {
         grinding_num = $grindingNum
         customize_or_skill_ids = $customizeIds
         decoration_ids = $decorationIds
+        decoration_names = $decorationNames
     })
 }
 
@@ -622,7 +669,7 @@ function Summarize-EquipBox {
         entries = $rows
         caveats = @(
             "Equipment save fields are partly generic. Weapons, armor series/parts, and charms are resolved where local enum message assets support them.",
-            "Decoration/customize fields are currently emitted as internal IDs because the local assets do not expose a complete decoration ID-to-name map."
+            "Decoration names are resolved from local Wilds assets. The raw numeric IDs are also retained in decoration_ids for cross-reference."
         )
     }
 }
@@ -663,7 +710,7 @@ function Summarize-EquipCurrent {
         slots = $slots
         caveats = @(
             "Equipment save fields are partly generic. Weapons, armor series/parts, and charms are resolved where local enum message assets support them.",
-            "Decoration/customize fields are currently emitted as internal IDs because the local assets do not expose a complete decoration ID-to-name map."
+            "Decoration names are resolved from local Wilds assets. The raw numeric IDs are also retained in decoration_ids for cross-reference."
         )
     }
 }
@@ -1064,7 +1111,7 @@ for ($slotIndex = 0; $slotIndex -lt 3; $slotIndex++) {
             "index", "kind", "category_gender", "type", "enum", "name", "armor_part",
             "free_val0", "free_val1", "free_val2", "free_val3", "free_val4", "free_val5",
             "bonus_by_creating", "bonus_by_grinding", "grinding_num",
-            "customize_or_skill_ids", "decoration_ids"
+            "customize_or_skill_ids", "decoration_ids", "decoration_names"
         )
         $written += $csvPath
     }
@@ -1081,7 +1128,7 @@ for ($slotIndex = 0; $slotIndex -lt 3; $slotIndex++) {
             "slot", "slot_index", "index", "kind", "category_gender", "type", "enum", "name", "armor_part",
             "free_val0", "free_val1", "free_val2", "free_val3", "free_val4", "free_val5",
             "bonus_by_creating", "bonus_by_grinding", "grinding_num",
-            "customize_or_skill_ids", "decoration_ids"
+            "customize_or_skill_ids", "decoration_ids", "decoration_names"
         )
         $written += $csvPath
     }
