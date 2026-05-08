@@ -4,6 +4,13 @@ Last refreshed: 2026-05-08
 
 This folder is the local working memory for Monster Hunter Wilds buildcrafting, materials, monsters, side quests, endemic life, fishing, and unlock routing. The original equipment data was scraped from Gamer Guides database pages and cross-checked against current guide/planner pages that mention Ver. 1.041 / 1.041.01 as the latest base-game data window.
 
+## Freshness
+
+- Game memory last broadly refreshed: 2026-05-08.
+- Last patch/content window represented: base-game Title Update 4 plus Ver. 1.041 / 1.041.01, with Ver. 1.041.00.00 released February 18, 2026 UTC.
+- Current meta snapshot file: `current_meta_notes.md`, last refreshed 2026-05-06, with LBG-specific additions on 2026-05-07.
+- Use live web verification before strong claims about newer patches, event rotations, post-Ver. 1.041 balance, expansion content, or anything contradicted by the user's in-game evidence.
+
 ## Core Wilds Build Rules
 
 - Decorations are split by equipment type: armor decorations only go in armor slots, and weapon decorations only go in weapon slots.
