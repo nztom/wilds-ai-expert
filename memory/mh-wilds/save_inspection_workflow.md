@@ -181,6 +181,8 @@ Then run the summary/CSV pass:
 
 The summary pass writes to `memory/private-save/summaries/<copy-id>/` by default. Use it for normal inspection questions, then return to the expanded dump files only when adding a new interpretation rule. It removes old `.json` and `.csv` files in the selected summary directory before writing fresh output.
 
+After a successful summary pass, private build override files under `memory/private-save/overrides/` are cleared for profiles tied to the refreshed `copy_id` only when the overrides are older than the dump being summarized. Re-summarizing an old dump keeps newer user-reported changes intact; summarizing a newly dumped save clears stale overlays once the copied-save summary catches up.
+
 The summary pass resolves display names from the local Wilds assets in the submodule.
 
 After a successful interpretation and summary pass, update `memory/private-save/save-inspection.config.json` so the active profile points at the copied save, generated dump dir, generated summary dir, SteamID, and intended character slot.

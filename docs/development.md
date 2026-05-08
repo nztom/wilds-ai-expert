@@ -88,5 +88,11 @@ Read-only helper scripts for common assistant lookups live in `tools/memory-quer
 ```powershell
 .\tools\memory-query\Find-MHWildsSkillSource.ps1 -Skill "Weakness Exploit"
 .\tools\memory-query\Find-MHWildsMaterial.ps1 -Name "Ajarakan Scale"
+.\tools\memory-query\Resolve-MHWildsCurrentState.ps1
 .\tools\memory-query\Get-MHWildsActiveSaveProfile.ps1
+.\tools\memory-query\Get-MHWildsBuildContext.ps1
 ```
+
+Use `Add-MHWildsBuildOverride.ps1` to record user-declared build changes that are not yet reflected in a copied save summary. The agent should resolve the exact equipment slot and decoration names before calling the script. Overrides are written under ignored `memory/private-save/overrides/` and applied by `Get-MHWildsBuildContext.ps1`; generated summary CSVs are not edited.
+
+`Summarize-MHWildsSaveDump.ps1` clears private build override files for matching profiles only when those overrides are older than the dump being summarized. Re-summarizing an old dump keeps newer user-declared overlays intact.

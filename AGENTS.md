@@ -42,10 +42,12 @@ For PowerShell 7, Git submodule, Rust/Cargo, and script-running prerequisites, r
 1. Use `memory/mh-wilds/manifest.json` as the quick routing map when the right source is not obvious.
 2. For build questions, read `buildcrafting_notes.md` and `current_meta_notes.md`, then use `skill_index.csv` or `tools/memory-query/Find-MHWildsSkillSource.ps1` for skill sources. Confirm edge cases in normalized CSVs.
 3. For material, monster, fishing, endemic-life, side-quest, or unlock questions, use the matching topic note first, then verify edge cases in CSVs or current sources.
-4. For save-specific answers, read the active profile from `memory/private-save/save-inspection.config.json` or run `tools/memory-query/Get-MHWildsActiveSaveProfile.ps1`, then use summary CSVs from that profile only.
-5. Do not open private summary JSON or expanded dumps unless the CSVs are insufficient and the user asks for deeper inspection.
-6. Use web research for latest patch/meta/event content, stale local memory, or contradictions from the user's in-game evidence.
-7. Store verified general facts under `memory/mh-wilds/`; store user-specific save/build/progression facts only under ignored `memory/private-save/`.
+4. For save-specific answers, resolve current state with `tools/memory-query/Resolve-MHWildsCurrentState.ps1`, then use summary CSVs from that active profile only.
+5. For current-build advice from save data, use the resolver output or `tools/memory-query/Get-MHWildsBuildContext.ps1`; both apply ignored private build overrides when present.
+6. When the user reports a build change not reflected in the copied save, resolve the exact equipment slot and decoration names, then record it with `tools/memory-query/Add-MHWildsBuildOverride.ps1` instead of editing generated summary CSVs.
+7. Do not open private summary JSON or expanded dumps unless the CSVs are insufficient and the user asks for deeper inspection.
+8. Use web research for latest patch/meta/event content, stale local memory, or contradictions from the user's in-game evidence.
+9. Store verified general facts under `memory/mh-wilds/`; store user-specific save/build/progression facts only under ignored `memory/private-save/`.
 
 ## Build Advice Principles
 
@@ -83,3 +85,4 @@ For PowerShell 7, Git submodule, Rust/Cargo, and script-running prerequisites, r
 - Keep `memory/private-save/save-inspection.config.json` up to date when creating or switching copied saves. A profile should bind one copied raw save to its matching dump dir, summary dir, SteamID, and zero-based character slot index. Do not combine rows or conclusions across profiles unless the user asks for a comparison.
 - Do not run account transfer, slot transfer, resign, repack, save, or editor write operations unless the user explicitly requests that exact operation and reconfirms the destination path.
 - For normal save questions, read summary CSVs first. If the CSVs lack needed detail, say what they show and mention that JSON detail may be available, but do not open summary JSON or expanded dumps unless the user asks.
+- Fresh save summary generation clears private build overrides for the refreshed copied save; re-add overrides only when the user reports changes made after that summary.

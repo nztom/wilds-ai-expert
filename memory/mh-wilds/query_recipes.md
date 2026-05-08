@@ -41,5 +41,21 @@ Import-Csv memory\mh-wilds\armor_normalized.csv |
 ## Active Private Save Profile
 
 ```powershell
+.\tools\memory-query\Resolve-MHWildsCurrentState.ps1
 .\tools\memory-query\Get-MHWildsActiveSaveProfile.ps1
+```
+
+## Active Build Context
+
+```powershell
+.\tools\memory-query\Get-MHWildsBuildContext.ps1
+```
+
+Record a user-declared decoration swap as a private overlay:
+
+```powershell
+.\tools\memory-query\Add-MHWildsBuildOverride.ps1 `
+  -EquipmentSlot arms `
+  -FromDecoration "Mighty Jewel [2]" `
+  -ToDecoration "Jumping Jewel [2]"
 ```

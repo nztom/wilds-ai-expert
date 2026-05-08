@@ -74,6 +74,71 @@ function Write-CsvFile {
     $Rows | Export-Csv -LiteralPath $Path -NoTypeInformation -Encoding UTF8
 }
 
+function Clear-BuildOverridesForCopy {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$RepoRoot,
+
+        [Parameter(Mandatory = $true)]
+        [string]$CopyId,
+
+        [Parameter(Mandatory = $true)]
+        [datetime]$DumpFreshnessTime
+    )
+
+    $overrideDir = Join-Path $RepoRoot "memory\private-save\overrides"
+    if (-not (Test-Path -LiteralPath $overrideDir -PathType Container)) {
+        return @()
+    }
+
+    $profileIds = [System.Collections.Generic.List[string]]::new()
+    $configPath = Join-Path $RepoRoot "memory\private-save\save-inspection.config.json"
+    if (Test-Path -LiteralPath $configPath -PathType Leaf) {
+        $config = Get-Content -Raw -LiteralPath $configPath | ConvertFrom-Json
+        foreach ($profile in @($config.profiles | Where-Object copy_id -eq $CopyId)) {
+            if ($profile.profile_id) {
+                $profileIds.Add([string]$profile.profile_id)
+            }
+        }
+    }
+
+    if ($profileIds.Count -eq 0) {
+        $profileIds.Add($CopyId)
+    }
+
+    $removed = [System.Collections.Generic.List[string]]::new()
+    foreach ($profileId in $profileIds) {
+        foreach ($file in @(Get-ChildItem -LiteralPath $overrideDir -File -Filter "$profileId*.json" -ErrorAction SilentlyContinue)) {
+            $override = Read-JsonFile $file.FullName
+            if ($null -eq $override) {
+                continue
+            }
+
+            $timestampText = [string]$override.updated_at
+            if ([string]::IsNullOrWhiteSpace($timestampText)) {
+                $latestOverrideTime = @($override.overrides | ForEach-Object { $_.created_at } | Sort-Object -Descending | Select-Object -First 1)
+                $timestampText = if ($latestOverrideTime.Count -gt 0) { [string]$latestOverrideTime[0] } else { "" }
+            }
+
+            $overrideTime = [datetime]::MinValue
+            if ([string]::IsNullOrWhiteSpace($timestampText) -or -not [datetime]::TryParse($timestampText, [ref]$overrideTime)) {
+                Write-Host "Kept private build override file with unknown timestamp: $($file.Name)"
+                continue
+            }
+
+            if ($overrideTime -gt $DumpFreshnessTime) {
+                Write-Host "Kept private build override newer than dump: $($file.Name)"
+                continue
+            }
+
+            Remove-Item -LiteralPath $file.FullName -Force
+            $removed.Add($file.Name)
+        }
+    }
+
+    return @($removed)
+}
+
 function Get-ObjectPropertyValue {
     param(
         $Object,
@@ -1669,6 +1734,8 @@ $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..\..")
 $repoRoot = $repoRoot.Path
 $resolvedDumpDir = Resolve-Path $DumpDir
 $resolvedDumpDir = $resolvedDumpDir.Path
+$copyId = Split-Path -Leaf $resolvedDumpDir
+$dumpFreshnessFile = Join-Path $resolvedDumpDir "interpreted-summary.json"
 
 if (-not (Test-IsRepoSubPath -Path $resolvedDumpDir -Root $repoRoot)) {
     throw "DumpDir must be inside this repository."
@@ -1678,8 +1745,13 @@ if ($resolvedDumpDir -match "\\2246340\\|\\Steam\\userdata\\|\\win64_save\\") {
     throw "Refusing to read a path that looks like a live Steam/MH Wilds save path."
 }
 
+if (-not (Test-Path -LiteralPath $dumpFreshnessFile -PathType Leaf)) {
+    throw "Missing interpreted-summary.json in dump dir: $resolvedDumpDir"
+}
+
+$dumpFreshnessTime = (Get-Item -LiteralPath $dumpFreshnessFile).LastWriteTime
+
 if (-not $OutDir) {
-    $copyId = Split-Path -Leaf $resolvedDumpDir
     $OutDir = Join-Path $repoRoot "memory\private-save\summaries\$copyId"
 }
 
@@ -1873,5 +1945,10 @@ $index = [ordered]@{
 }
 
 Write-JsonFile (Join-Path $resolvedOutDir "index.json") $index
+
+$clearedOverrideFiles = Clear-BuildOverridesForCopy -RepoRoot $repoRoot -CopyId $copyId -DumpFreshnessTime $dumpFreshnessTime
+if ($clearedOverrideFiles.Count -gt 0) {
+    Write-Host "Cleared stale private build override files for copy '$copyId': $($clearedOverrideFiles -join ', ')"
+}
 
 Write-Host "Wrote $($writtenCsv.Count) CSV and $($writtenJson.Count + 1) JSON summary files to $resolvedOutDir (JSON in json\)"
