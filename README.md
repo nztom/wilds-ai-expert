@@ -15,6 +15,7 @@ Local knowledge base and working context for a Monster Hunter Wilds assistant. I
 - `memory/mh-wilds/`: public game memory. Start with `memory/mh-wilds/README.md` for the detailed file map.
 - `memory/private-save/`: ignored local-only folder for user-specific save notes, copied saves, dumps, and interpreted private summaries.
 - `tools/ree-save-editor/`: submodule for RE Engine save tooling. Default use is read-only dumping through `ree-dump`.
+- `tools/save-inspection/`: repo-owned save interpretation helpers. The runner temporarily stages helper source into the submodule, writes interpreted summaries under `memory/private-save/`, and removes the temporary submodule file.
 
 ## Public Memory Contents
 

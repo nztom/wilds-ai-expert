@@ -35,6 +35,7 @@ The repo is a Monster Hunter Wilds knowledge base plus optional read-only save-i
 - `memory/mh-wilds/monster_field_guide.md`: compact large-monster locations, elemental weaknesses, break targets, and hunt notes.
 - `memory/mh-wilds/side_quest_notes.md`: walkthrough notes for side quests with non-obvious objectives.
 - `memory/mh-wilds/unlocks_and_special_items.md`: mantles, material gatherers, Palico skills, charms, hunting assistants, Great Hunts, and other functional side-quest unlocks.
+- `memory/mh-wilds/save_inspection_workflow.md`: safe, read-only workflow for copying, dumping, and interpreting MH Wilds saves into ignored private output.
 - `memory/mh-wilds/skills.csv` and `skills_normalized.csv`: raw and normalized skill data.
 - `memory/mh-wilds/decorations_armor.csv` and `decorations_armor_normalized.csv`: armor decoration data.
 - `memory/mh-wilds/decorations_weapon.csv` and `decorations_weapon_normalized.csv`: weapon decoration data.
@@ -45,6 +46,7 @@ The repo is a Monster Hunter Wilds knowledge base plus optional read-only save-i
 - `memory/mh-wilds/source_counts.json`: source URLs and row counts from the latest data refresh.
 - `memory/private-save/`: ignored local-only folder for save-specific notes, copied saves, dumps, and interpreted private summaries.
 - `tools/ree-save-editor/`: Git submodule for RE Engine save tooling. Prefer its `ree-dump` binary for read-only copied-save inspection; do not use it to write to live saves.
+- `tools/save-inspection/`: repo-owned read-only save interpretation helpers. The runner temporarily stages helper source into the submodule, writes interpreted summaries under `memory/private-save/`, and removes the temporary submodule file.
 
 ## Default Research Flow
 
@@ -52,8 +54,9 @@ The repo is a Monster Hunter Wilds knowledge base plus optional read-only save-i
 2. For build questions, use `skill_index.csv` first to locate whether a skill comes from armor decorations, weapon decorations, armor pieces, or talismans, then confirm in the normalized CSVs.
 3. For material, monster, fishing, endemic-life, side-quest, or unlock questions, use the corresponding markdown note first, then verify edge cases in CSVs or current sources.
 4. Use `memory/private-save/` only for user-specific save/build/progression facts; do not put private save facts in public memory files.
-5. Use web research when the question is about the latest patch/meta/event content, or when local memory is stale, incomplete, or contradicted by the user's in-game evidence.
-6. After verifying a meaningful new general fact, update or add a concise note under `memory/mh-wilds/` with the source and refresh date.
+5. For save inspection, read `memory/mh-wilds/save_inspection_workflow.md` first and follow its safety and interpretation workflow.
+6. Use web research when the question is about the latest patch/meta/event content, or when local memory is stale, incomplete, or contradicted by the user's in-game evidence.
+7. After verifying a meaningful new general fact, update or add a concise note under `memory/mh-wilds/` with the source and refresh date.
 
 ## Build Advice Principles
 
@@ -91,5 +94,6 @@ The repo is a Monster Hunter Wilds knowledge base plus optional read-only save-i
 - Dumped save data must go under `memory/private-save/dumps/`, and interpreted private notes must go under `memory/private-save/`.
 - Prefer read-only dump tooling such as `ree-dump` over GUI save editing. Do not run account transfer, resign, repack, save, or editor write operations unless the user explicitly requests that exact operation and reconfirms the destination path.
 - The `tools/ree-save-editor/` submodule exists to support this read-only workflow. Build or run only the parts needed for dumping copied saves unless the user gives a narrower explicit instruction.
+- Prefer `tools/save-inspection/Invoke-MHWildsSaveInterpretation.ps1` for interpreted summaries; it keeps the helper source tracked in this repo while leaving the submodule clean after each run.
 - Always update `tools/ree-save-editor/` from its configured branch before building it.
 - When building submodule tooling, keep dependency caches and build outputs inside this repository, for example with `CARGO_HOME` set to `.cargo-home/` and `CARGO_TARGET_DIR` set to `.cargo-target/`.
