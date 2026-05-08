@@ -40,7 +40,7 @@ The repo is a Monster Hunter Wilds knowledge base plus optional read-only save-i
 - `memory/mh-wilds/skills.csv` and `skills_normalized.csv`: raw and normalized skill data.
 - `memory/mh-wilds/decorations_armor.csv` and `decorations_armor_normalized.csv`: armor decoration data.
 - `memory/mh-wilds/decorations_weapon.csv` and `decorations_weapon_normalized.csv`: weapon decoration data.
-- `memory/mh-wilds/armor.csv` and `armor_normalized.csv`: armor piece data, including armor set, rarity, skills, slots, materials, and unlock notes.
+- `memory/mh-wilds/armor.csv` and `armor_normalized.csv`: armor piece data, including armor set, rarity, skills, Kiranico-enriched per-piece skill levels (`Skill Details` / `SkillDetails`) where resolved, slots, materials, and unlock notes.
 - `memory/mh-wilds/talismans.csv` and `talismans_normalized.csv`: talisman data.
 - `memory/mh-wilds/equipment_materials.csv` and `equipment_materials_normalized.csv`: equipment material data.
 - `memory/mh-wilds/skill_index.csv`: derived lookup by skill. Use this first for "where can I get this skill?" questions, then confirm edge cases in the normalized source files.
@@ -48,19 +48,20 @@ The repo is a Monster Hunter Wilds knowledge base plus optional read-only save-i
 - `memory/private-save/`: ignored local-only folder for save-specific notes, copied raw saves, expanded JSON dumps, and compact resolved summaries/CSVs.
 - `memory/private-save/save-inspection.config.json`: ignored active-save profile config. Read this before answering save-specific questions so copied saves, dump folders, summary folders, and character slot indexes do not get blended.
 - `tools/ree-save-editor/`: Git submodule for RE Engine save tooling. Use it only for read-only copied-save inspection unless the user gives a narrower explicit instruction; do not use it to write to live saves.
+- `tools/knowledge-refresh/`: public knowledge-base refresh helpers. Use these for tracked memory updates such as enriching armor skill levels; do not put private save tooling or private output here.
 - `tools/save-inspection/`: repo-owned read-only save interpretation helpers. The runner temporarily stages helper source into the submodule, writes expanded JSON dumps under `memory/private-save/dumps/`, and removes the temporary submodule file. The summarizer writes compact JSON/CSV summaries under `memory/private-save/summaries/`. `save-inspection.config.example.json` documents the private config schema.
 
 ## Default Research Flow
 
 1. Read `memory/mh-wilds/README.md`, `buildcrafting_notes.md`, and `current_meta_notes.md` for session context.
-2. For build questions, use `skill_index.csv` first to locate whether a skill comes from armor decorations, weapon decorations, armor pieces, or talismans, then confirm in the normalized CSVs.
+2. For build questions, use `skill_index.csv` first to locate whether a skill comes from armor decorations, weapon decorations, armor pieces, or talismans, then confirm in the normalized CSVs. Use `armor_normalized.csv` `SkillDetails` for exact armor-piece skill levels when present.
 3. For material, monster, fishing, endemic-life, side-quest, or unlock questions, use the corresponding markdown note first, then verify edge cases in CSVs or current sources.
 4. Use `memory/private-save/` only for user-specific save/build/progression facts; do not put private save facts in public memory files.
 5. For save inspection, read `memory/mh-wilds/save_inspection_workflow.md` first and follow its safety and interpretation workflow.
 6. For save-specific answers, read `memory/private-save/save-inspection.config.json` when present, use its `active_profile_id`, and only read files from that profile's `dump_dir`, `summary_dir`, and `active_character_slot_index` unless the user explicitly asks to switch profiles.
 7. When resolved save summaries are available for the active profile, read the CSV files from the summary dir root (e.g., `*-summary.csv`, `profile-summary.csv`) and answer from those. Do not open the `json/` subfolder automatically. If the CSVs do not contain enough detail to fully answer the question, answer with what the CSVs do show and note at the end that additional detail may be available in the JSON files — but wait for the user to ask before reading them. Ground user-specific advice in that actual save data before making assumptions about owned gear, decorations, item stock, captured endemic life, fishing records, quest progress, or unlocked systems.
 8. Use web research when the question is about the latest patch/meta/event content, or when local memory is stale, incomplete, or contradicted by the user's in-game evidence.
-9. After verifying a meaningful new general fact, update or add a concise note under `memory/mh-wilds/` with the source and refresh date.
+9. After verifying a meaningful new general fact, update or add a concise note under `memory/mh-wilds/` with the source and refresh date. If the update is structured public data, prefer a repeatable helper under `tools/knowledge-refresh/` instead of embedding one-off logic in save-inspection tooling.
 
 ## Build Advice Principles
 
