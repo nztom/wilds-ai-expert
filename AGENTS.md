@@ -27,6 +27,7 @@ The repo is currently a focused knowledge base with one main data directory:
 - `memory/mh-wilds/equipment_materials.csv` and `equipment_materials_normalized.csv`: equipment material data.
 - `memory/mh-wilds/skill_index.csv`: derived lookup by skill. Use this first for "where can I get this skill?" questions, then confirm edge cases in the normalized source files.
 - `memory/mh-wilds/source_counts.json`: source URLs and row counts from the latest data refresh.
+- `tools/ree-save-editor/`: Git submodule for RE Engine save tooling. Prefer its `ree-dump` binary for read-only copied-save inspection; do not use it to write to live saves.
 
 ## Default Research Flow
 
@@ -62,3 +63,4 @@ The repo is currently a focused knowledge base with one main data directory:
 - Any save-inspection workflow must first copy the save into an ignored location inside this repo, such as `memory/private-save/raw/`, then operate only on that copy.
 - Dumped save data must go under `memory/private-save/dumps/`, and interpreted private notes must go under `memory/private-save/`.
 - Prefer read-only dump tooling such as `ree-dump` over GUI save editing. Do not run account transfer, resign, repack, save, or editor write operations unless the user explicitly requests that exact operation and reconfirms the destination path.
+- The `tools/ree-save-editor/` submodule exists to support this read-only workflow. Build or run only the parts needed for dumping copied saves unless the user gives a narrower explicit instruction.
