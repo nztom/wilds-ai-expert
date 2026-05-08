@@ -47,6 +47,8 @@ This folder is the local working memory for Monster Hunter Wilds buildcrafting, 
 
 Private save profile selection lives outside this folder in ignored `memory/private-save/save-inspection.config.json`. Check it before using private save summaries so multiple copied saves or character slots do not get blended.
 
+User-reported gameplay observations that have not been source-verified live outside this folder in ignored `memory/user-reports/`. Keep public `memory/mh-wilds/` notes for source-backed general facts and clearly caveated research summaries.
+
 ## Quick Query Examples
 
 Use `tools/memory-query/` for common lookups. More examples live in `query_recipes.md`.
@@ -72,3 +74,4 @@ Known caveat: `skill_index.csv` is a derived convenience file based on skill-nam
 - Put capture-net endemic life in `endemic_life_locations.md`.
 - Put broad unlock tables in `unlocks_and_special_items.md`; keep quest walkthrough quirks in `side_quest_notes.md`.
 - Put monster weakness/location summaries in `monster_field_guide.md`, and verify exact hitzones/rewards in-game when precision matters.
+- Put unverified user-observed mechanics, attempt notes, and contradiction reports in ignored `memory/user-reports/`, then promote only verified general facts back into public notes.

@@ -19,6 +19,7 @@ This repository is the local memory and working context for a Monster Hunter Wil
 - When the user asks about current meta, patch-sensitive mechanics, event gear, expansion content, or anything likely to have changed, verify with current sources before making strong claims.
 - Store useful findings back into `memory/mh-wilds/` so future sessions can build on the research instead of rediscovering it.
 - Store user-specific save/build/progression facts only under ignored `memory/private-save/`.
+- Store user-reported gameplay observations that are not source-verified under ignored `memory/user-reports/`, not in public `memory/mh-wilds/` notes.
 
 ## Repository Map
 
@@ -31,6 +32,7 @@ The repo is a Monster Hunter Wilds knowledge base plus optional read-only save-i
 - Public CSV data under `memory/mh-wilds/`: skills, decorations, armor, talismans, equipment materials, and `skill_index.csv`.
 - `memory/private-save/`: ignored local-only folder for save-specific notes, copied raw saves, expanded dumps, and compact summaries/CSVs.
 - `memory/private-save/save-inspection.config.json`: ignored active-save profile config. Read this before answering save-specific questions so copied saves, dump folders, summary folders, and character slots do not get blended.
+- `memory/user-reports/`: ignored local-only folder for user-observed gameplay notes, such as in-game mechanic checks, failed/cleared attempt observations, and unverified behavior reports.
 - `tools/knowledge-refresh/`, `tools/save-inspection/`, `tools/ree-save-editor/`: tooling for public refreshes and read-only copied-save inspection. See developer docs before running scripts or building tooling.
 
 ## Developer Docs
@@ -47,7 +49,7 @@ For PowerShell 7, Git submodule, Rust/Cargo, and script-running prerequisites, r
 6. When the user reports a build change not reflected in the copied save, resolve the exact equipment slot and decoration names, then record it with `tools/memory-query/Add-MHWildsBuildOverride.ps1` instead of editing generated summary CSVs.
 7. Do not open private summary JSON or expanded dumps unless the CSVs are insufficient and the user asks for deeper inspection.
 8. Use web research for latest patch/meta/event content, stale local memory, or contradictions from the user's in-game evidence.
-9. Store verified general facts under `memory/mh-wilds/`; store user-specific save/build/progression facts only under ignored `memory/private-save/`.
+9. Store verified general facts under `memory/mh-wilds/`; store user-specific save/build/progression facts only under ignored `memory/private-save/`; store unverified user gameplay observations under ignored `memory/user-reports/`.
 
 ## Build Advice Principles
 
@@ -75,6 +77,7 @@ For PowerShell 7, Git submodule, Rust/Cargo, and script-running prerequisites, r
 - Put broad unlock tables in `unlocks_and_special_items.md`; keep quest walkthrough quirks in `side_quest_notes.md`.
 - Put monster weakness/location summaries in `monster_field_guide.md`, and verify exact hitzones/rewards in-game when precision matters.
 - Keep private save facts, owned inventory, exact progression, and user-specific loadouts in ignored `memory/private-save/`.
+- Keep user-reported but unverified gameplay observations, such as suspected damage gates or item restrictions observed during attempts, in ignored `memory/user-reports/`.
 
 ## Private Save And Tooling Safety
 

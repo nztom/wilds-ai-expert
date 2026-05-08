@@ -1,6 +1,9 @@
 # Local/private save-specific notes.
 memory/private-save/
 
+# Local user-reported gameplay observations.
+memory/user-reports/
+
 # Repo-local tool build/cache directories.
 .cargo-home/
 .cargo-target/

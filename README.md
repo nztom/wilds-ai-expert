@@ -24,4 +24,4 @@ Never write to Steam libraries, Steam userdata, Steam Cloud directories, game in
 
 ## Private Data
 
-`memory/private-save/`, `.cargo-home/`, and `.cargo-target/` are ignored local-only paths. Do not commit private save facts, copied saves, dumps, summaries, or local build caches.
+`memory/private-save/`, `memory/user-reports/`, `.cargo-home/`, and `.cargo-target/` are ignored local-only paths. Do not commit private save facts, copied saves, dumps, summaries, user-reported gameplay observations, or local build caches.
