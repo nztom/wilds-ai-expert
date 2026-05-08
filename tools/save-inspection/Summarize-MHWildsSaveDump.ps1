@@ -166,6 +166,20 @@ function Initialize-NameResolver {
         }
     }
 
+    # Build hash-suffix -> English name for bowgun customization mods.
+    # Messages use names like "BowgunCustomize_NAME<hash>" where negative hashes are encoded as "m<abs>".
+    $bowgunCustomizeHashToName = @{}
+    foreach ($message in $messageMap.Values) {
+        $messageName = Get-ObjectPropertyValue $message "name"
+        if ($messageName -and $messageName.StartsWith("BowgunCustomize_NAME")) {
+            $hashSuffix = $messageName.Substring("BowgunCustomize_NAME".Length)
+            $english = Get-EnglishMessage $message
+            if ($english) {
+                $bowgunCustomizeHashToName[$hashSuffix] = $english
+            }
+        }
+    }
+
     return [pscustomobject]@{
         enums = $enums
         mappings = $mappings
@@ -175,6 +189,9 @@ function Initialize-NameResolver {
         accessory_id_enum = (Get-ObjectPropertyValue $enums "app.EquipDef.ACCESSORY_ID")
         accessory_fixed_enum = (Get-ObjectPropertyValue $enums "app.EquipDef.ACCESSORY_ID_Fixed")
         accessory_hash_to_name = $accessoryHashToName
+        bowgun_customize_id_enum = (Get-ObjectPropertyValue $enums "app.CustomizeItemID.ID")
+        bowgun_customize_fixed_enum = (Get-ObjectPropertyValue $enums "app.CustomizeItemID.ID_Fixed")
+        bowgun_customize_hash_to_name = $bowgunCustomizeHashToName
         messages = $messageMap
         enemy_names = $enemyNames
     }
@@ -560,6 +577,29 @@ function Resolve-AccessoryId {
     return $Resolver.accessory_hash_to_name[$hashSuffix]
 }
 
+function Resolve-BowgunCustomizeId {
+    param(
+        $Resolver,
+        $Id
+    )
+
+    if ($null -eq $Resolver -or $null -eq $Id -or $null -eq $Resolver.bowgun_customize_id_enum) {
+        return $null
+    }
+
+    $enumName = Get-ObjectPropertyValue $Resolver.bowgun_customize_id_enum ([string]$Id)
+    if (-not $enumName) { return $null }
+
+    $hash = Get-ObjectPropertyValue $Resolver.bowgun_customize_fixed_enum $enumName
+    if ($null -eq $hash) { return $enumName }
+
+    # Negative hashes are encoded in message names as "m<abs>" instead of "-<abs>".
+    $hashSuffix = if ([int64]$hash -lt 0) { "m$([math]::Abs([int64]$hash))" } else { [string]$hash }
+    $name = $Resolver.bowgun_customize_hash_to_name[$hashSuffix]
+    if ($name) { return $name }
+    return $enumName
+}
+
 function Convert-MapToString {
     param($Map)
 
@@ -847,6 +887,14 @@ function Convert-EquipEntryToRow {
     $bonusByGrinding = Convert-ScalarValue (Get-FieldValue -Class $Entry -Name "BonusByGrinding")
     $grindingNum = Convert-ScalarValue (Get-FieldValue -Class $Entry -Name "GrindingNum")
     $customizeIds = Convert-IdArrayToString (Get-FieldValue -Class $Entry -Name "BowgunCustomizeId")
+    $customizeIdRaw = Get-ArrayValues (Get-FieldValue -Class $Entry -Name "BowgunCustomizeId")
+    $customizeIdFilled = @($customizeIdRaw | Where-Object { $null -ne $_ -and [int64]$_ -ne -1 })
+    $customizeNames = if ($customizeIdFilled.Count -gt 0) {
+        ($customizeIdFilled | ForEach-Object {
+            $n = Resolve-BowgunCustomizeId $Resolver (Convert-ScalarValue $_)
+            if ($n) { $n } else { Convert-ScalarValue $_ }
+        }) -join ";"
+    } else { "" }
     $decorationIdRaw = Get-ArrayValues (Get-FieldValue -Class $Entry -Name "EquipmentAccessoryIdArray")
     $decorationIds = Convert-IdArrayToString (Get-FieldValue -Class $Entry -Name "EquipmentAccessoryIdArray")
     $decorationIdFilled = @($decorationIdRaw | Where-Object { $null -ne $_ -and [int64]$_ -ne -1 })
@@ -973,6 +1021,8 @@ function Convert-EquipEntryToRow {
         bonus_by_grinding = $bonusByGrinding
         grinding_num = $grindingNum
         customize_or_skill_ids = $customizeIds
+        bowgun_mod_ids = $customizeIds
+        bowgun_mod_names = $customizeNames
         decoration_ids = $decorationIds
         decoration_names = $decorationNames
         native_skills = $nativeSkills
@@ -1007,6 +1057,7 @@ function Summarize-EquipBox {
         entries = $rows
         caveats = @(
             "Equipment save fields are partly generic. Weapons, armor series/parts, and charms are resolved where local enum message assets support them.",
+            "Bowgun mods from BowgunCustomizeId are listed in bowgun_mod_ids and bowgun_mod_names when local enum message assets support them.",
             "Decoration names are resolved from local Wilds assets. The raw numeric IDs are also retained in decoration_ids for cross-reference.",
             "Decoration and roman-numeral charm levels are inferred from local skill/deco tables. Native armor skill levels are resolved from armor_normalized.csv SkillDetails when available; otherwise they are marked Lv?."
         )
@@ -1049,6 +1100,7 @@ function Summarize-EquipCurrent {
         slots = $slots
         caveats = @(
             "Equipment save fields are partly generic. Weapons, armor series/parts, and charms are resolved where local enum message assets support them.",
+            "Bowgun mods from BowgunCustomizeId are listed in bowgun_mod_ids and bowgun_mod_names when local enum message assets support them.",
             "Decoration names are resolved from local Wilds assets. The raw numeric IDs are also retained in decoration_ids for cross-reference.",
             "Decoration and roman-numeral charm levels are inferred from local skill/deco tables. Native armor skill levels are resolved from armor_normalized.csv SkillDetails when available; otherwise they are marked Lv?."
         )
@@ -1703,7 +1755,7 @@ for ($slotIndex = 0; $slotIndex -lt 3; $slotIndex++) {
             "index", "kind", "category_gender", "type", "enum", "name", "armor_part",
             "free_val0", "free_val1", "free_val2", "free_val3", "free_val4", "free_val5",
             "bonus_by_creating", "bonus_by_grinding", "grinding_num",
-            "customize_or_skill_ids", "decoration_ids", "decoration_names",
+            "customize_or_skill_ids", "bowgun_mod_ids", "bowgun_mod_names", "decoration_ids", "decoration_names",
             "native_skills", "decoration_skills", "native_skill_details", "decoration_skill_details"
         )
         $writtenCsv += $csvPath
@@ -1721,7 +1773,7 @@ for ($slotIndex = 0; $slotIndex -lt 3; $slotIndex++) {
             "slot", "slot_index", "index", "kind", "category_gender", "type", "enum", "name", "armor_part",
             "free_val0", "free_val1", "free_val2", "free_val3", "free_val4", "free_val5",
             "bonus_by_creating", "bonus_by_grinding", "grinding_num",
-            "customize_or_skill_ids", "decoration_ids", "decoration_names",
+            "customize_or_skill_ids", "bowgun_mod_ids", "bowgun_mod_names", "decoration_ids", "decoration_names",
             "native_skills", "decoration_skills", "native_skill_details", "decoration_skill_details"
         )
         $writtenCsv += $csvPath

@@ -97,6 +97,9 @@ To adjust extraction depth, edit the `max_depth` literal in the relevant `extrac
 | `slot{N}-delivery-bounty-summary.json` | Delivery/bounty scalar values and nonzero arrays |
 | `slot{N}-camp-summary.json` | Camp scalar values and nonzero arrays |
 | `slot{N}-equip-summary.json` | Equipment-box entries reduced to nonzero scalar fields |
+| `slot{N}-equip-summary.csv` | CSV form of equipment-box entries, with weapon/armor/charm/decorations and bowgun mods resolved where possible |
+| `slot{N}-equip-current-summary.json` | Current equipped slots resolved from `_Equip._EquipIndex` into `_Equip._EquipBox`, including slotted decorations and bowgun mods |
+| `slot{N}-equip-current-summary.csv` | CSV form of currently equipped gear, preferred for active-build questions |
 
 Use the expanded dump files when the summary omits a field needed for a new interpretation rule.
 Empty slot CSVs are intentionally written as tiny blank files when a slot has no rows for that table.
@@ -106,3 +109,4 @@ Name resolution path:
 - Items: `enumsmhwilds.json` maps fixed item IDs to enum keys; `enums_mappings_mhwilds.json` maps those keys to message GUIDs; `combined_msgs.json` provides the English display string.
 - Monsters, fish, and endemic life: `enumsmhwilds.json` maps fixed enemy IDs to enum keys; `combined_msgs.json` provides `EnemyText_NAME_<enum>` English display strings.
 - Decorations: `_Equip._AccessoryBox` stores decoration IDs and quantities; `enumsmhwilds.json` plus `combined_msgs.json` resolve names, and local `decorations_*_normalized.csv` files add slot type, slot level, rarity, skills, and skill levels.
+- Bowgun mods: equipment rows store `BowgunCustomizeId`; `enumsmhwilds.json` maps those ordinals to fixed customize IDs, and `combined_msgs.json` provides `BowgunCustomize_NAME*` English display strings.
