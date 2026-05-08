@@ -56,6 +56,7 @@ Import-Csv memory\mh-wilds\armor_normalized.csv |
 
 ```powershell
 .\tools\memory-query\Get-MHWildsBuildContext.ps1
+.\tools\memory-query\Get-MHWildsCurrentSkills.ps1 -Sources
 ```
 
 Record a user-declared decoration swap as a private overlay:

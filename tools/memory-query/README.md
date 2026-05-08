@@ -10,6 +10,7 @@ Small read-only helpers for common local lookups. Use these from the repo root w
 .\tools\memory-query\Resolve-MHWildsCurrentState.ps1
 .\tools\memory-query\Get-MHWildsActiveSaveProfile.ps1
 .\tools\memory-query\Get-MHWildsBuildContext.ps1
+.\tools\memory-query\Get-MHWildsCurrentSkills.ps1 -Sources
 ```
 
 These scripts only read repo-local CSVs or ignored private config. They do not inspect live saves.

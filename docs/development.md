@@ -92,6 +92,7 @@ Read-only helper scripts for common assistant lookups live in `tools/memory-quer
 .\tools\memory-query\Resolve-MHWildsCurrentState.ps1
 .\tools\memory-query\Get-MHWildsActiveSaveProfile.ps1
 .\tools\memory-query\Get-MHWildsBuildContext.ps1
+.\tools\memory-query\Get-MHWildsCurrentSkills.ps1 -Sources
 ```
 
 Use `Add-MHWildsBuildOverride.ps1` to record user-declared build changes that are not yet reflected in a copied save summary. The agent should resolve the exact equipment slot and decoration names before calling the script. Overrides are written under ignored `memory/private-save/overrides/` and applied by `Get-MHWildsBuildContext.ps1`; generated summary CSVs are not edited.

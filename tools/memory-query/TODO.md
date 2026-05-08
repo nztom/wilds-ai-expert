@@ -15,9 +15,9 @@ Ordered by expected implementation effort, with the highest-value next helpers f
    - Use `Resolve-MHWildsCurrentState.ps1` so private build overrides are applied.
    - Output met, missing, below-target, and over-target skills.
 
-3. `Get-MHWildsCurrentSkills.ps1`
+3. `Get-MHWildsCurrentSkills.ps1` - done
    - Thin wrapper around `Resolve-MHWildsCurrentState.ps1`.
-   - Print only resolved current skill totals, max levels, overcap flags, and sources when requested.
+   - Prints only resolved current skill totals, max levels, overcap flags, and sources when requested.
 
 ## Later Helpers
 

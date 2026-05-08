@@ -56,6 +56,7 @@
     "current_state_resolver": "tools/memory-query/Resolve-MHWildsCurrentState.ps1",
     "active_save_profile": "tools/memory-query/Get-MHWildsActiveSaveProfile.ps1",
     "active_build_context": "tools/memory-query/Get-MHWildsBuildContext.ps1",
+    "current_skills": "tools/memory-query/Get-MHWildsCurrentSkills.ps1",
     "private_build_override": "tools/memory-query/Add-MHWildsBuildOverride.ps1",
     "skill_sources": "tools/memory-query/Find-MHWildsSkillSource.ps1",
     "owned_decorations": "tools/memory-query/Find-MHWildsOwnedDecoration.ps1",
