@@ -71,3 +71,5 @@ The repo is currently a focused knowledge base with one main data directory:
 - Dumped save data must go under `memory/private-save/dumps/`, and interpreted private notes must go under `memory/private-save/`.
 - Prefer read-only dump tooling such as `ree-dump` over GUI save editing. Do not run account transfer, resign, repack, save, or editor write operations unless the user explicitly requests that exact operation and reconfirms the destination path.
 - The `tools/ree-save-editor/` submodule exists to support this read-only workflow. Build or run only the parts needed for dumping copied saves unless the user gives a narrower explicit instruction.
+- Always update `tools/ree-save-editor/` from its configured branch before building it.
+- When building submodule tooling, keep dependency caches and build outputs inside this repository, for example with `CARGO_HOME` set to `.cargo-home/` and `CARGO_TARGET_DIR` set to `.cargo-target/`.
