@@ -11,6 +11,23 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+function Test-IsRepoSubPath {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Root
+    )
+
+    $fullPath = [System.IO.Path]::GetFullPath($Path).TrimEnd('\', '/')
+    $fullRoot = [System.IO.Path]::GetFullPath($Root).TrimEnd('\', '/')
+
+    return $fullPath.Equals($fullRoot, [System.StringComparison]::OrdinalIgnoreCase) -or
+        $fullPath.StartsWith($fullRoot + [System.IO.Path]::DirectorySeparatorChar, [System.StringComparison]::OrdinalIgnoreCase) -or
+        $fullPath.StartsWith($fullRoot + [System.IO.Path]::AltDirectorySeparatorChar, [System.StringComparison]::OrdinalIgnoreCase)
+}
+
 $repoRoot = Resolve-Path (Join-Path $PSScriptRoot "..\..")
 $repoRoot = $repoRoot.Path
 $submodule = Join-Path $repoRoot "tools\ree-save-editor"
@@ -25,7 +42,7 @@ else {
     $outputDir = [System.IO.Path]::GetFullPath((Join-Path $repoRoot $OutDir))
 }
 
-if (-not ($saveCopy.StartsWith($repoRoot, [System.StringComparison]::OrdinalIgnoreCase))) {
+if (-not (Test-IsRepoSubPath -Path $saveCopy -Root $repoRoot)) {
     throw "SaveCopyPath must be inside this repository. Copy the live save into memory\private-save\raw first."
 }
 
@@ -33,7 +50,7 @@ if ($saveCopy -match "\\2246340\\|\\Steam\\userdata\\|\\win64_save\\|data\d+Slot
     throw "Refusing to operate on a path that looks like a live Steam/MH Wilds save path."
 }
 
-if (-not ($outputDir.StartsWith($repoRoot, [System.StringComparison]::OrdinalIgnoreCase))) {
+if (-not (Test-IsRepoSubPath -Path $outputDir -Root $repoRoot)) {
     throw "OutDir must be inside this repository."
 }
 
@@ -55,6 +72,17 @@ try {
 
     New-Item -ItemType Directory -Force -Path (Split-Path $helperDestination) | Out-Null
     New-Item -ItemType Directory -Force -Path $outputDir | Out-Null
+    Remove-Item -LiteralPath (Join-Path $outputDir "interpreted-summary.json") -Force -ErrorAction SilentlyContinue
+    Get-ChildItem -LiteralPath $outputDir -File -Filter "slot*-equip-box.json" -ErrorAction SilentlyContinue | Remove-Item -Force
+    Get-ChildItem -LiteralPath $outputDir -File -Filter "slot*-item-box.json" -ErrorAction SilentlyContinue | Remove-Item -Force
+    Get-ChildItem -LiteralPath $outputDir -File -Filter "slot*-mission.json" -ErrorAction SilentlyContinue | Remove-Item -Force
+    Get-ChildItem -LiteralPath $outputDir -File -Filter "slot*-endemic-captures.json" -ErrorAction SilentlyContinue | Remove-Item -Force
+    Get-ChildItem -LiteralPath $outputDir -File -Filter "slot*-fish-captures.json" -ErrorAction SilentlyContinue | Remove-Item -Force
+    Get-ChildItem -LiteralPath $outputDir -File -Filter "slot*-monster-report.json" -ErrorAction SilentlyContinue | Remove-Item -Force
+    Get-ChildItem -LiteralPath $outputDir -File -Filter "slot*-story.json" -ErrorAction SilentlyContinue | Remove-Item -Force
+    Get-ChildItem -LiteralPath $outputDir -File -Filter "slot*-quest-record.json" -ErrorAction SilentlyContinue | Remove-Item -Force
+    Get-ChildItem -LiteralPath $outputDir -File -Filter "slot*-delivery-bounty.json" -ErrorAction SilentlyContinue | Remove-Item -Force
+    Get-ChildItem -LiteralPath $outputDir -File -Filter "slot*-camp.json" -ErrorAction SilentlyContinue | Remove-Item -Force
     Copy-Item -LiteralPath $helperSource -Destination $helperDestination -Force
 
     Push-Location $submodule

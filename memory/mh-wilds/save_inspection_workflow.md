@@ -95,8 +95,13 @@ Useful known paths in `data001Slot.bin`:
 - `_Data[slot]->_Item->_BoxItem`: item box.
 - `_Data[slot]->_Equip->_EquipBox`: equipment storage.
 - `_Data[slot]->_Equip->_ArtianPartsBox`: Artian parts.
+- `_Data[slot]->_Story`: story progression.
 - `_Data[slot]->_Mission`: mission flags.
+- `_Data[slot]->_QuestRecord`: quest record state.
+- `_Data[slot]->_DeliveryBounty`: delivery bounty state.
+- `_Data[slot]->_Camp`: camp unlock/placement state.
 - `_Data[slot]->_Animal`: endemic-life capture state.
+- `_Data[slot]->_EnemyReport`: monster, endemic, and fish report state.
 - `_Data[slot]->_EnemyReport->_AnimalFishing`: fishing records.
 
 ## Tracked Helper Pattern
@@ -123,13 +128,7 @@ The helper does this:
 3. Load the copied save with `SaveOptions::new(Game::MHWILDS).id(steamid64)` and `SaveFile::load`.
 4. Walk `SaveFile.fields`, resolving class names via `get_by_hash` or `crc_map`.
 5. Resolve each field name from the parent class `TypeInfo`.
-6. Emit concise JSON such as:
-
-```text
-memory/private-save/dumps/<copy-id>/interpreted-summary.json
-```
-
-Depth-limit recursive value output. Large fields like item box and equipment can explode quickly; summaries should show names, declared types, array lengths, and first values unless a deeper targeted extraction is needed.
+6. Write all output files under the given `out-dir`.
 
 Run it with:
 
@@ -139,6 +138,97 @@ Run it with:
   -SteamId64 <steamid64> `
   -OutDir .\memory\private-save\dumps\data001Slot-YYYYMMDD-HHMMSS
 ```
+
+## Output Files
+
+The helper writes one summary file plus targeted files per character slot (slot index is zero-based). Targeted files are written for each slot where the corresponding save path resolves.
+
+Before each run, `Invoke-MHWildsSaveInterpretation.ps1` removes its known generated files from the selected output directory:
+
+- `interpreted-summary.json`
+- `slot*-equip-box.json`
+- `slot*-item-box.json`
+- `slot*-mission.json`
+- `slot*-endemic-captures.json`
+- `slot*-fish-captures.json`
+- `slot*-monster-report.json`
+- `slot*-story.json`
+- `slot*-quest-record.json`
+- `slot*-delivery-bounty.json`
+- `slot*-camp.json`
+
+This prevents stale slot files from surviving when a later run resolves fewer paths.
+
+### `interpreted-summary.json`
+
+Always written. Contains:
+
+- `source_file`, `game`, `flags`, `top_level_field_count`.
+- `top_level`: full structural walk at max_depth=2. Arrays are truncated to their first 10 elements (`"first_values"` key; `"truncated": true` when longer). At the depth limit, Classes collapse to `{ kind, hash, num_fields }` and Arrays to `{ kind, len }`.
+- `slots`: per-slot summaries, each with `slot_index`, `active`, hunter/Palico/Seikret/Pugee names from `_BasicData`, boolean flags for `_Item` and `_Equip` presence, and `top_fields` (slot class expanded to depth 1).
+
+Scalar values (strings, integers, booleans, enums) are always emitted as their actual value regardless of depth. The depth limit only gates recursion into Class and Array nodes.
+
+Typical token size: 10–30 k for a three-slot save.
+
+### `slot{N}-equip-box.json`
+
+Full equipment box for slot N. Path: `_Equip → _EquipBox`. Expanded to max_depth=4 with no array truncation, which is deep enough to reach decoration slots on each equipment piece:
+
+```
+depth 0  EquipBox array element (equipment piece class)
+depth 1  piece fields: type ID, level, reinforcement, skill entries, deco slot array
+depth 2  deco slot array elements (individual decoration class)
+depth 3  decoration fields: item ID, level
+depth 4  any further nesting
+```
+
+Use this file to read the hunter's full equipment storage including slotted decorations. If decoration fields appear at depth 5+, increase `max_depth` in `extract_equip_box` in `mhwilds_interpret_save.rs`.
+
+### `slot{N}-item-box.json`
+
+Full item box for slot N. Path: `_Item → _BoxItem`. Expanded to max_depth=2 with no array truncation. Item entries are expected to be simple (ItemId, Num); depth 2 is sufficient. Use this file to read the complete item storage.
+
+### `slot{N}-mission.json`
+
+Full mission and quest progress for slot N. Path: `_Mission`. The entire `_Mission` class is expanded to max_depth=3 with no array truncation. Quest flag arrays at depth 1 are fully emitted rather than truncated at 10, so this file captures the complete quest completion state. Use this file to determine which quests, investigations, and progression gates are cleared.
+
+### `slot{N}-endemic-captures.json`
+
+Full endemic-life capture state for slot N. Path: `_Animal`. The entire `_Animal` class is expanded to max_depth=3 with no array truncation. Use this file to determine which endemic life has been captured, capture counts by stage, and endemic-life mini-game/stat counters when those fields resolve.
+
+### `slot{N}-fish-captures.json`
+
+Full fish capture/report state for slot N. Path: `_EnemyReport → _AnimalFishing`. The `_AnimalFishing` array is expanded to max_depth=3 with no array truncation. Use this file to determine which fish have been caught and fishing report progress once fish IDs are cross-referenced against game data.
+
+### `slot{N}-monster-report.json`
+
+Full monster report state for slot N. Path: `_EnemyReport`. The entire `_EnemyReport` class is expanded to max_depth=3 with no array truncation. Use this file to inspect large monster, small monster, endemic, and fishing report records together.
+
+### `slot{N}-story.json`
+
+Story progression state for slot N. Path: `_Story`. The `_Story` class is expanded to max_depth=3 with no array truncation. Use this file to inspect guide mission, progress ID, story flags, and story package flags.
+
+### `slot{N}-quest-record.json`
+
+Quest record state for slot N. Path: `_QuestRecord`. The `_QuestRecord` class is expanded to max_depth=3 with no array truncation. Use this file to inspect historical quest records and clear/stat tracking where fields resolve.
+
+### `slot{N}-delivery-bounty.json`
+
+Delivery bounty state for slot N. Path: `_DeliveryBounty`. The `_DeliveryBounty` class is expanded to max_depth=3 with no array truncation. Use this file to inspect delivery-style unlock progress and bounty state.
+
+### `slot{N}-camp.json`
+
+Camp unlock/placement state for slot N. Path: `_Camp`. The `_Camp` class is expanded to max_depth=3 with no array truncation. Use this file to inspect camp unlock and placement state.
+
+## Two-Pass Design
+
+The Rust source has two function families:
+
+- **Summary family** (`class_to_named_json`, `named_value_json`, `array_to_named_json`): truncates arrays to 10. Used only for `interpreted-summary.json`.
+- **Full family** (`class_to_json_full`, `named_value_full_json`, `array_to_json_full`): no truncation. Used for targeted files.
+
+Both families share `value_preview`, `field_info`, `type_name`, `get_field`, and `array_classes`. To add a new targeted extraction, write an `extract_*` function using the full family, call it inside the per-slot loop in `main`, and write its output with `write_json`.
 
 ## Sanity Checks
 
@@ -156,14 +246,103 @@ Expected git state:
 - `.cargo-target/` ignored.
 - No tracked public files containing hunter IDs, character names, inventory, or progression facts unless the user explicitly asks to record sanitized facts.
 
+Expected output files when all three slot paths resolve:
+
+```text
+interpreted-summary.json
+slot0-equip-box.json
+slot0-item-box.json
+slot0-mission.json
+slot0-endemic-captures.json
+slot0-fish-captures.json
+slot0-monster-report.json
+slot0-story.json
+slot0-quest-record.json
+slot0-delivery-bounty.json
+slot0-camp.json
+slot1-equip-box.json
+slot1-item-box.json
+slot1-mission.json
+slot1-endemic-captures.json
+slot1-fish-captures.json
+slot1-monster-report.json
+slot1-story.json
+slot1-quest-record.json
+slot1-delivery-bounty.json
+slot1-camp.json
+slot2-equip-box.json
+slot2-item-box.json
+slot2-mission.json
+slot2-endemic-captures.json
+slot2-fish-captures.json
+slot2-monster-report.json
+slot2-story.json
+slot2-quest-record.json
+slot2-delivery-bounty.json
+slot2-camp.json
+```
+
+Inactive/default slots can still have save containers, so targeted files may be written for all three slots even when only one slot is active.
+
 ## Current Known Result Shape
 
-A good interpreted summary should identify:
+### interpreted-summary.json
 
 - Root save class: `app.savedata.cUserSaveData`.
 - `_Data` as a 3-slot array of `app.savedata.cUserSaveParam`.
 - Active slot via `Active = 1`.
 - `_BasicData` fields such as `CharName`, `OtomoName`, `SeikretName`, and `PugeeName`.
-- Presence of `_Item`, `_Equip`, `_Mission`, `_Animal`, `_Collection`, and `_EnemyReport`.
+- Presence flags for `_Item`, `_Equip`, `_Mission`, `_Animal`, `_Collection`, and `_EnemyReport`.
+
+### slot{N}-equip-box.json
+
+- Array of equipment piece classes, each with resolved type name, skill entries, and decoration slot arrays.
+- Look for fields like `_ItemId`, `_EquipCategory`, `_SlotData`, or similar hashes to identify piece type and decoration contents.
+- If decoration fields still appear as `{ kind: "Class", num_fields: N }` previews, the actual deco data is nested deeper than max_depth=4; increase depth in `extract_equip_box`.
+
+### slot{N}-item-box.json
+
+- Array of item entry classes, each with item ID and quantity.
+- Cross-reference item IDs against game data to identify materials, consumables, and ammo.
+
+### slot{N}-mission.json
+
+- `_Mission` class with all sub-arrays fully expanded.
+- Contains quest completion arrays — look for boolean or integer flag fields alongside quest ID fields to determine cleared state.
+
+### slot{N}-endemic-captures.json
+
+- `_Animal` class with all sub-arrays fully expanded.
+- Contains endemic-life capture state and per-stage capture counters where those fields resolve.
+
+### slot{N}-fish-captures.json
+
+- `_EnemyReport._AnimalFishing` array with all report entries fully expanded.
+- Contains fishing capture/report state. Cross-reference fish IDs against game data to identify each species.
+
+### slot{N}-monster-report.json
+
+- `_EnemyReport` class with monster, endemic, and fishing report arrays fully expanded.
+- Contains large monster and small monster record state. Cross-reference IDs against game data to identify each species.
+
+### slot{N}-story.json
+
+- `_Story` class with guide mission, story progress, and story bitsets expanded.
+- Useful for determining story progression and unlock gates.
+
+### slot{N}-quest-record.json
+
+- `_QuestRecord` class with quest records expanded.
+- Useful for historical quest clear/stat tracking where fields resolve.
+
+### slot{N}-delivery-bounty.json
+
+- `_DeliveryBounty` class with bounty/delivery records expanded.
+- Useful for delivery-style unlock progress.
+
+### slot{N}-camp.json
+
+- `_Camp` class with camp records expanded.
+- Useful for camp unlock and placement state.
 
 Do not copy exact user values from private output into public notes.
