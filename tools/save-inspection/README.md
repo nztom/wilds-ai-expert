@@ -30,7 +30,7 @@ After interpretation, create the smaller working summaries:
   -DumpDir .\memory\private-save\dumps\data001Slot-YYYYMMDD-HHMMSS
 ```
 
-By default, summaries are written to the same dump directory under `memory\private-save\dumps\<copy-id>\`. The script resolves item, monster, endemic-life, and fish names from local Wilds assets in the `ree-save-editor` submodule, so the generated CSV files are the friendliest source for analysis. Prefer the `*-summary.csv` outputs and avoid reading the JSON summary files unless you need lower-level debugging details.
+By default, summaries are written under `memory\private-save\summaries\<copy-id>\`. The script resolves item, monster, endemic-life, fish, and decoration names from local Wilds assets in the `ree-save-editor` submodule, then enriches decoration rows from the local normalized decoration CSVs. The generated CSV files are the friendliest source for analysis. Prefer the `*-summary.csv` outputs and avoid reading the JSON summary files unless you need lower-level debugging details.
 
 After creating or switching a copied save, update the private config:
 
@@ -82,6 +82,9 @@ To adjust extraction depth, edit the `max_depth` literal in the relevant `extrac
 | `profile-summary.csv` | CSV form of slot activity and visible profile/presence fields |
 | `slot{N}-inventory-summary.json` | Nonzero item-box entries with item IDs and quantities |
 | `slot{N}-inventory-summary.csv` | CSV form of inventory entries, with item enum/name resolved where possible |
+| `slot{N}-decorations-summary.json` | Loose owned decorations from `_Equip._AccessoryBox`, with type, slot level, skill details, and quantity |
+| `slot{N}-decorations-summary.csv` | CSV form of owned decorations for quick build queries |
+| `slot{N}-decoration-skills-summary.csv` | Skill-oriented rollup of owned decoration quantities and total known skill levels |
 | `slot{N}-fishing-summary.json` | Fish records with observed state or capture counts |
 | `slot{N}-fishing-summary.csv` | CSV form of fish records, with fish enum/name resolved where possible |
 | `slot{N}-monster-report-summary.json` | Observed boss, small-monster, endemic, and fish report rows |
@@ -94,9 +97,6 @@ To adjust extraction depth, edit the `max_depth` literal in the relevant `extrac
 | `slot{N}-delivery-bounty-summary.json` | Delivery/bounty scalar values and nonzero arrays |
 | `slot{N}-camp-summary.json` | Camp scalar values and nonzero arrays |
 | `slot{N}-equip-summary.json` | Equipment-box entries reduced to nonzero scalar fields |
-| `slot{N}-decorations-summary.json` | Loose owned decorations from `_Equip._AccessoryBox`, with type, slot level, skill details, and quantity |
-| `slot{N}-decorations-summary.csv` | CSV form of owned decorations for quick build queries |
-| `slot{N}-decoration-skills-summary.csv` | Skill-oriented rollup of owned decoration quantities and total known skill levels |
 
 Use the expanded dump files when the summary omits a field needed for a new interpretation rule.
 Empty slot CSVs are intentionally written as tiny blank files when a slot has no rows for that table.

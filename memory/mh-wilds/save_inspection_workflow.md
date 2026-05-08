@@ -355,7 +355,7 @@ slot2-camp.json
 
 Inactive/default slots can still have save containers, so targeted files may be written for all three slots even when only one slot is active.
 
-Expected summary outputs: CSVs and `index.json` at the summary dir root; JSON versions in a `json/` subfolder. CSVs cover profile, inventory, equipment box, equipped loadout, fishing, monster report, and endemic captures. JSON also includes story, mission, quest-record, delivery-bounty, and camp summaries with no CSV counterpart.
+Expected summary outputs: CSVs and `index.json` at the summary dir root; JSON versions in a `json/` subfolder. CSVs cover profile, inventory, owned decorations, decoration skill rollups, equipment box, equipped loadout, fishing, monster report, and endemic captures. JSON also includes story, mission, quest-record, delivery-bounty, and camp summaries with no CSV counterpart.
 
 Also verify `memory/private-save/save-inspection.config.json` points at the intended `copy_id`, `summary_dir`, and `active_character_slot_index`.
 

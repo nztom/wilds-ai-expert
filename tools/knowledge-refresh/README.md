@@ -15,4 +15,22 @@ Run from the repository root:
 .\tools\knowledge-refresh\Update-MHWildsArmorSkillLevels.ps1
 ```
 
-This script performs read-only web requests and rewrites public CSV memory files only.
+The script performs read-only web requests, caches fetched Kiranico pages under ignored `memory/mh-wilds/.cache/kiranico-armor-series/`, and rewrites public CSV memory files only:
+
+- `memory/mh-wilds/armor.csv`
+- `memory/mh-wilds/armor_normalized.csv`
+
+Useful options:
+
+```powershell
+.\tools\knowledge-refresh\Update-MHWildsArmorSkillLevels.ps1 `
+  -RequestDelayMs 750 `
+  -RequestTimeoutSec 30 `
+  -ThrottleLimit 1
+```
+
+After running, check the script output for matched-row counts and inspect the diff before committing:
+
+```powershell
+git diff -- memory/mh-wilds/armor.csv memory/mh-wilds/armor_normalized.csv
+```
