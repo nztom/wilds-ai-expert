@@ -6,12 +6,15 @@ Small read-only helpers for common local lookups. Use these from the repo root w
 .\tools\memory-query\Find-MHWildsSkillSource.ps1 -Skill "Weakness Exploit"
 .\tools\memory-query\Find-MHWildsSkillSource.ps1 -Skill "Exploit" -Contains
 .\tools\memory-query\Find-MHWildsMaterial.ps1 -Name "Ajarakan Scale"
+.\tools\memory-query\Find-MHWildsOwnedDecoration.ps1 -Skill "Evade Extender"
 .\tools\memory-query\Resolve-MHWildsCurrentState.ps1
 .\tools\memory-query\Get-MHWildsActiveSaveProfile.ps1
 .\tools\memory-query\Get-MHWildsBuildContext.ps1
 ```
 
 These scripts only read repo-local CSVs or ignored private config. They do not inspect live saves.
+
+Planned helper work lives in `tools/memory-query/TODO.md`.
 
 ## Current State Resolution
 

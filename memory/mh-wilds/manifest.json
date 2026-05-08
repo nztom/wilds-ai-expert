@@ -58,6 +58,7 @@
     "active_build_context": "tools/memory-query/Get-MHWildsBuildContext.ps1",
     "private_build_override": "tools/memory-query/Add-MHWildsBuildOverride.ps1",
     "skill_sources": "tools/memory-query/Find-MHWildsSkillSource.ps1",
+    "owned_decorations": "tools/memory-query/Find-MHWildsOwnedDecoration.ps1",
     "materials": "tools/memory-query/Find-MHWildsMaterial.ps1"
   },
   "private_save_rules": [

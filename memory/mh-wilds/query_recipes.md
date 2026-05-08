@@ -38,6 +38,13 @@ Import-Csv memory\mh-wilds\armor_normalized.csv |
 .\tools\memory-query\Find-MHWildsMaterial.ps1 -Name "Ajarakan Scale"
 ```
 
+## Owned Decorations
+
+```powershell
+.\tools\memory-query\Find-MHWildsOwnedDecoration.ps1 -Skill "Evade Extender"
+.\tools\memory-query\Find-MHWildsOwnedDecoration.ps1 -Name "Jumping"
+```
+
 ## Active Private Save Profile
 
 ```powershell
