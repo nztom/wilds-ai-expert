@@ -29,8 +29,8 @@ This folder is the local working memory for Monster Hunter Wilds buildcrafting, 
 - `decorations_armor_normalized.csv`: Armor decoration title, skill, required slot, rarity, price.
 - `decorations_weapon.csv`: Raw weapon decoration table.
 - `decorations_weapon_normalized.csv`: Weapon decoration title, skill, required slot, rarity, price.
-- `armor.csv`: Raw armor-piece table.
-- `armor_normalized.csv`: Armor title, set, rarity, skills, slot columns, materials, unlock notes.
+- `armor.csv`: Raw armor-piece table, with Kiranico-enriched `Skill Details` when resolved.
+- `armor_normalized.csv`: Armor title, set, rarity, skills, `SkillDetails` with per-piece levels when resolved, slot columns, materials, unlock notes.
 - `talismans.csv`: Raw talisman table.
 - `talismans_normalized.csv`: Talisman title, skills, rarity, HR, materials, unlock notes.
 - `skill_index.csv`: Derived lookup by skill. Use this first when answering "where can this skill go?"

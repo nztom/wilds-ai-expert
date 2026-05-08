@@ -4,3 +4,4 @@ memory/private-save/
 # Repo-local tool build/cache directories.
 .cargo-home/
 .cargo-target/
+memory/mh-wilds/.cache/

@@ -16,6 +16,7 @@ Local knowledge base and working context for a Monster Hunter Wilds assistant. I
 - `memory/private-save/`: ignored local-only folder for user-specific save notes, copied raw saves, expanded JSON dumps, and compact resolved summaries/CSVs.
 - `memory/private-save/save-inspection.config.json`: ignored active-save profile config. It records which copied save, dump folder, summary folder, SteamID, and zero-based character slot are currently active.
 - `tools/ree-save-editor/`: submodule for RE Engine save tooling. Default use is read-only copied-save inspection.
+- `tools/knowledge-refresh/`: public knowledge-base refresh helpers that update tracked data under `memory/mh-wilds/`.
 - `tools/save-inspection/`: repo-owned save interpretation helpers. The runner temporarily stages helper source into the submodule, writes expanded JSON dumps under `memory/private-save/dumps/`, removes the temporary submodule file, and the summarizer writes resolved JSON/CSV summaries under `memory/private-save/summaries/`.
 
 ## Public Memory Contents

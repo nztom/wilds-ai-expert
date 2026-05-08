@@ -206,16 +206,137 @@ function Initialize-LocalDataResolver {
     }
     Write-Host "Loading local skill data..."
 
-    # Decoration name → list of skill names (handles dual-skill decos via Description)
+    $skillMaxLevels = @{}
+    foreach ($skillRow in (Import-Csv -LiteralPath $skillsCsvPath)) {
+        if ($skillRow.Title) {
+            $maxLevel = 0
+            if ([int]::TryParse([string]$skillRow.MaxLevel, [ref]$maxLevel)) {
+                $skillMaxLevels[$skillRow.Title] = $maxLevel
+            }
+        }
+    }
+
+    function Get-RomanNumeralValue {
+        param([string]$Value)
+
+        switch ($Value) {
+            "I" { return 1 }
+            "II" { return 2 }
+            "III" { return 3 }
+            "IV" { return 4 }
+            "V" { return 5 }
+            default { return $null }
+        }
+    }
+
+    function Limit-SkillLevel {
+        param(
+            [string]$Skill,
+            [nullable[int]]$Level
+        )
+
+        if ($null -eq $Level) { return $null }
+        if ($skillMaxLevels.ContainsKey($Skill) -and $skillMaxLevels[$Skill] -gt 0) {
+            return [Math]::Min([int]$Level, [int]$skillMaxLevels[$Skill])
+        }
+        return [int]$Level
+    }
+
+    function Format-SkillDetails {
+        param([object[]]$Details)
+
+        $parts = [System.Collections.Generic.List[string]]::new()
+        foreach ($detail in @($Details)) {
+            if (-not $detail.skill) { continue }
+            $levelText = if ($null -ne $detail.level) { "Lv$($detail.level)" } else { "Lv?" }
+            $parts.Add("$($detail.skill) $levelText")
+        }
+        return $parts -join ";"
+    }
+
+    function Parse-SkillDetailsText {
+        param([string]$Text)
+
+        $details = @()
+        if (-not $Text) { return $details }
+        foreach ($part in ($Text -split ';')) {
+            $part = $part.Trim()
+            if (-not $part) { continue }
+            if ($part -match '^(.+?)\s+(?:Lv\.?|Level)\s*(\d+)$') {
+                $details += [pscustomobject]@{
+                    skill = $matches[1].Trim()
+                    level = [int]$matches[2]
+                }
+            }
+            elseif ($part -match '^(.+?)\s+\+(\d+)$') {
+                $details += [pscustomobject]@{
+                    skill = $matches[1].Trim()
+                    level = [int]$matches[2]
+                }
+            }
+        }
+        return $details
+    }
+
+    function Get-DecorationSkillDetails {
+        param(
+            $Row,
+            [bool]$IsArmorDecoration
+        )
+
+        $title = [string]$Row.Title
+        $primarySkill = [string]$Row.Skill
+        if (-not $title -or -not $primarySkill) { return @() }
+
+        $slotLevel = 0
+        [void][int]::TryParse([string]$Row.SlotLevel, [ref]$slotLevel)
+
+        $skills = [System.Collections.Generic.List[string]]::new()
+        $skills.Add($primarySkill)
+        if ($Row.Description -match 'grants the .+? and (.+?) skills') {
+            $secondarySkill = ($matches[1] -replace '[.…]+$', '').Trim()
+            if ($secondarySkill -and -not $skills.Contains($secondarySkill)) {
+                $skills.Add($secondarySkill)
+            }
+        }
+
+        $romanLevel = $null
+        if ($title -match '\b(?:Jewel|Jwl)\s+(I|II|III|IV|V)\s*\[') {
+            $romanLevel = Get-RomanNumeralValue $matches[1]
+        }
+
+        $details = @()
+        for ($i = 0; $i -lt $skills.Count; $i++) {
+            $skill = $skills[$i]
+            $level = 1
+            if (-not $IsArmorDecoration) {
+                if ($null -ne $romanLevel -and $i -eq 0) {
+                    $level = $romanLevel
+                }
+                elseif ($title -like '*/*' -and $i -eq 0 -and $slotLevel -gt 0) {
+                    $level = $slotLevel
+                }
+            }
+            $details += [pscustomobject]@{
+                skill = $skill
+                level = Limit-SkillLevel $skill $level
+            }
+        }
+        return $details
+    }
+
+    # Decoration name → list of skill names/details (handles dual-skill decos via Description)
     $decoToSkills = @{}
+    $decoToSkillDetails = @{}
     foreach ($csvPath in $decoCsvPaths) {
+        $isArmorDecoration = ([System.IO.Path]::GetFileName($csvPath) -eq "decorations_armor_normalized.csv")
         foreach ($row in (Import-Csv -LiteralPath $csvPath)) {
             $title = $row.Title
             if (-not $title) { continue }
-            if ($row.Description -match 'grants the (.+?) and (.+?) skills') {
-                $decoToSkills[$title] = @($matches[1].Trim(), ($matches[2] -replace '[.…]+$', '').Trim())
-            } elseif ($row.Skill) {
-                $decoToSkills[$title] = @($row.Skill)
+            $details = @(Get-DecorationSkillDetails $row $isArmorDecoration)
+            if ($details.Count -gt 0) {
+                $decoToSkillDetails[$title] = $details
+                $decoToSkills[$title] = @($details | ForEach-Object { $_.skill })
             }
         }
     }
@@ -244,6 +365,12 @@ function Initialize-LocalDataResolver {
     $pieceTitleToSkills = @{}
     foreach ($row in $armorRows) { if ($row.Title) { $pieceTitleToSkills[$row.Title] = [System.Collections.Generic.List[string]]::new() } }
     $pieceTitles = @($pieceTitleToSkills.Keys)
+    $pieceTitleToKnownSkillDetails = @{}
+    foreach ($row in $armorRows) {
+        if ($row.Title -and $row.PSObject.Properties["SkillDetails"] -and $row.SkillDetails) {
+            $pieceTitleToKnownSkillDetails[$row.Title] = @(Parse-SkillDetailsText $row.SkillDetails)
+        }
+    }
     $charmToSkills = @{}
     $charmRe = [regex]'(?<![a-z])([A-Z][A-Za-z0-9/'' ]+?) Charm (III|II|IV|V|I)(?= |$)'
     foreach ($skillRow in (Import-Csv -LiteralPath $skillsCsvPath)) {
@@ -260,6 +387,10 @@ function Initialize-LocalDataResolver {
             $charmToSkills[$cn].Add($skillRow.Title)
         }
     }
+    $directCharmNames = @{}
+    foreach ($cn in @($charmToSkills.Keys)) {
+        $directCharmNames[$cn] = $true
+    }
     # Propagate skills to all roman-numeral tiers of each charm base so that
     # e.g. "Exploiter Charm III" resolves even when only I/II appear in ObtainedFrom.
     $charmBases = @{}
@@ -275,11 +406,38 @@ function Initialize-LocalDataResolver {
         }
     }
 
+    $pieceTitleToSkillDetails = @{}
+    foreach ($title in $pieceTitleToSkills.Keys) {
+        if ($pieceTitleToKnownSkillDetails.ContainsKey($title) -and $pieceTitleToKnownSkillDetails[$title].Count -gt 0) {
+            $pieceTitleToSkillDetails[$title] = $pieceTitleToKnownSkillDetails[$title]
+        }
+        else {
+            $pieceTitleToSkillDetails[$title] = @($pieceTitleToSkills[$title] | ForEach-Object {
+                [pscustomobject]@{ skill = $_; level = $null }
+            })
+        }
+    }
+
+    $charmToSkillDetails = @{}
+    foreach ($charmName in $charmToSkills.Keys) {
+        $charmLevel = $null
+        if ($directCharmNames.ContainsKey($charmName) -and $charmName -match ' (I|II|III|IV|V)$') {
+            $charmLevel = Get-RomanNumeralValue $matches[1]
+        }
+        $charmToSkillDetails[$charmName] = @($charmToSkills[$charmName] | ForEach-Object {
+            [pscustomobject]@{ skill = $_; level = Limit-SkillLevel $_ $charmLevel }
+        })
+    }
+
     return [pscustomobject]@{
-        deco_to_skills        = $decoToSkills
-        armor_key_to_title    = $armorKeyToTitle
-        piece_title_to_skills = $pieceTitleToSkills
-        charm_to_skills       = $charmToSkills
+        deco_to_skills              = $decoToSkills
+        deco_to_skill_details       = $decoToSkillDetails
+        armor_key_to_title          = $armorKeyToTitle
+        piece_title_to_skills       = $pieceTitleToSkills
+        piece_title_to_skill_details = $pieceTitleToSkillDetails
+        charm_to_skills             = $charmToSkills
+        charm_to_skill_details      = $charmToSkillDetails
+        format_skill_details        = ${function:Format-SkillDetails}
     }
 }
 
@@ -647,6 +805,19 @@ function Get-WeaponTypeName {
     }
 }
 
+function Get-RomanNumeral {
+    param($Value)
+
+    switch ([int]$Value) {
+        1 { return "I" }
+        2 { return "II" }
+        3 { return "III" }
+        4 { return "IV" }
+        5 { return "V" }
+        default { return $null }
+    }
+}
+
 function Convert-EquipEntryToRow {
     param(
         [Parameter(Mandatory = $true)]
@@ -707,6 +878,10 @@ function Convert-EquipEntryToRow {
         $resolved = Resolve-EnumMappedName $Resolver "app.ArmorDef.AmuletType" $freeVal0
         $enum = $resolved["enum"]
         $name = $resolved["name"]
+        $tier = Get-RomanNumeral $freeVal1
+        if ($name -and $tier -and $name -match '^(.+? Charm) (I|II|III|IV|V)$') {
+            $name = "$($matches[1]) $tier"
+        }
     }
     elseif ([int64]$category -eq 13) {
         # Category_Gender=13 means "weapon". FreeVal0 = weapon type in traditional MH 14-weapon
@@ -725,17 +900,24 @@ function Convert-EquipEntryToRow {
 
     $nativeSkills = ""
     $decoSkillsStr = ""
+    $nativeSkillDetails = ""
+    $decoSkillDetails = ""
     if ($null -ne $LocalResolver) {
         # Decoration skills
         if ($decorationIdFilled.Count -gt 0 -and $decorationNames) {
             $allDecoSkills = [System.Collections.Generic.List[string]]::new()
+            $allDecoDetails = @()
             foreach ($dn in ($decorationNames -split ';')) {
                 $dn = $dn.Trim()
                 if ($dn -and $LocalResolver.deco_to_skills.ContainsKey($dn)) {
                     foreach ($s in $LocalResolver.deco_to_skills[$dn]) { $allDecoSkills.Add($s) }
                 }
+                if ($dn -and $LocalResolver.deco_to_skill_details.ContainsKey($dn)) {
+                    $allDecoDetails += @($LocalResolver.deco_to_skill_details[$dn])
+                }
             }
             $decoSkillsStr = $allDecoSkills -join ";"
+            $decoSkillDetails = & $LocalResolver.format_skill_details $allDecoDetails
         }
         # Native skills from armor piece or charm
         if ($kind -eq "armor" -and $name) {
@@ -749,11 +931,17 @@ function Convert-EquipEntryToRow {
                 $pieceTitle = $LocalResolver.armor_key_to_title[$key]
                 if ($pieceTitle -and $LocalResolver.piece_title_to_skills.ContainsKey($pieceTitle)) {
                     $nativeSkills = $LocalResolver.piece_title_to_skills[$pieceTitle] -join ";"
+                    if ($LocalResolver.piece_title_to_skill_details.ContainsKey($pieceTitle)) {
+                        $nativeSkillDetails = & $LocalResolver.format_skill_details @($LocalResolver.piece_title_to_skill_details[$pieceTitle])
+                    }
                 }
             }
         } elseif ($kind -eq "charm" -and $name) {
             if ($LocalResolver.charm_to_skills.ContainsKey($name)) {
                 $nativeSkills = $LocalResolver.charm_to_skills[$name] -join ";"
+                if ($LocalResolver.charm_to_skill_details.ContainsKey($name)) {
+                    $nativeSkillDetails = & $LocalResolver.format_skill_details @($LocalResolver.charm_to_skill_details[$name])
+                }
             }
         }
     }
@@ -780,6 +968,8 @@ function Convert-EquipEntryToRow {
         decoration_names = $decorationNames
         native_skills = $nativeSkills
         decoration_skills = $decoSkillsStr
+        native_skill_details = $nativeSkillDetails
+        decoration_skill_details = $decoSkillDetails
     })
 }
 
@@ -808,7 +998,8 @@ function Summarize-EquipBox {
         entries = $rows
         caveats = @(
             "Equipment save fields are partly generic. Weapons, armor series/parts, and charms are resolved where local enum message assets support them.",
-            "Decoration names are resolved from local Wilds assets. The raw numeric IDs are also retained in decoration_ids for cross-reference."
+            "Decoration names are resolved from local Wilds assets. The raw numeric IDs are also retained in decoration_ids for cross-reference.",
+            "Decoration and roman-numeral charm levels are inferred from local skill/deco tables. Native armor skill levels are resolved from armor_normalized.csv SkillDetails when available; otherwise they are marked Lv?."
         )
     }
 }
@@ -849,7 +1040,8 @@ function Summarize-EquipCurrent {
         slots = $slots
         caveats = @(
             "Equipment save fields are partly generic. Weapons, armor series/parts, and charms are resolved where local enum message assets support them.",
-            "Decoration names are resolved from local Wilds assets. The raw numeric IDs are also retained in decoration_ids for cross-reference."
+            "Decoration names are resolved from local Wilds assets. The raw numeric IDs are also retained in decoration_ids for cross-reference.",
+            "Decoration and roman-numeral charm levels are inferred from local skill/deco tables. Native armor skill levels are resolved from armor_normalized.csv SkillDetails when available; otherwise they are marked Lv?."
         )
     }
 }
@@ -1060,34 +1252,111 @@ function Convert-EndemicSummaryToRows {
 function Build-SkillsTally {
     param([object[]]$Rows)
 
+    function Add-SkillTallyValue {
+        param(
+            [System.Collections.Specialized.OrderedDictionary]$Tally,
+            [string]$Skill,
+            [nullable[int]]$Level,
+            [string]$Source,
+            [string]$SlotName,
+            [string]$CharmName
+        )
+
+        $skill = $Skill.Trim()
+        if (-not $skill) { return }
+        if (-not $Tally.Contains($skill)) {
+            $Tally[$skill] = [ordered]@{
+                skill_name = $skill
+                deco_count = 0
+                deco_levels = 0
+                native_in = [System.Collections.Generic.List[string]]::new()
+                native_levels = 0
+                charm = ''
+                charm_level = ''
+                known_total_level = 0
+                has_unknown_level = $false
+            }
+        }
+
+        if ($Source -eq 'decoration') {
+            $Tally[$skill].deco_count++
+            if ($null -ne $Level) {
+                $Tally[$skill].deco_levels += [int]$Level
+                $Tally[$skill].known_total_level += [int]$Level
+            } else {
+                $Tally[$skill].has_unknown_level = $true
+            }
+        }
+        elseif ($Source -eq 'charm') {
+            $Tally[$skill].charm = $CharmName
+            if ($null -ne $Level) {
+                $Tally[$skill].charm_level = [string]$Level
+                $Tally[$skill].known_total_level += [int]$Level
+            } else {
+                $Tally[$skill].has_unknown_level = $true
+            }
+        }
+        else {
+            $Tally[$skill].native_in.Add($SlotName)
+            if ($null -ne $Level) {
+                $Tally[$skill].native_levels += [int]$Level
+                $Tally[$skill].known_total_level += [int]$Level
+            } else {
+                $Tally[$skill].has_unknown_level = $true
+            }
+        }
+    }
+
+    function Add-SkillDetailsToTally {
+        param(
+            [System.Collections.Specialized.OrderedDictionary]$Tally,
+            [string]$Details,
+            [string]$Source,
+            [string]$SlotName,
+            [string]$CharmName
+        )
+
+        $added = 0
+        foreach ($detail in ($Details -split ';')) {
+            $detail = $detail.Trim()
+            if (-not $detail) { continue }
+            if ($detail -match '^(.+?)\s+Lv(\d+|\?)$') {
+                $level = $null
+                if ($matches[2] -ne '?') { $level = [int]$matches[2] }
+                Add-SkillTallyValue $Tally $matches[1] $level $Source $SlotName $CharmName
+                $added++
+            }
+        }
+        return $added
+    }
+
     $tally = [ordered]@{}
     foreach ($row in $Rows) {
         $slotName = $row.slot
         # Skip overflow weapon/equipment slots (slot_7, slot_8, …) — only the 7 named slots count.
         if ($slotName -like 'slot_*') { continue }
 
-        if ($row.decoration_skills) {
+        $addedDecoDetails = 0
+        if ($row.decoration_skill_details) {
+            $addedDecoDetails = Add-SkillDetailsToTally $tally $row.decoration_skill_details 'decoration' $slotName ''
+        }
+        if ($addedDecoDetails -eq 0 -and $row.decoration_skills) {
             foreach ($skill in ($row.decoration_skills -split ';')) {
-                $skill = $skill.Trim()
-                if (-not $skill) { continue }
-                if (-not $tally.Contains($skill)) {
-                    $tally[$skill] = [ordered]@{ skill_name = $skill; deco_count = 0; native_in = [System.Collections.Generic.List[string]]::new(); charm = '' }
-                }
-                $tally[$skill].deco_count++
+                Add-SkillTallyValue $tally $skill $null 'decoration' $slotName ''
             }
         }
 
-        if ($row.native_skills) {
+        $nativeSource = if ($row.kind -eq 'charm') { 'charm' } else { 'native' }
+        $addedNativeDetails = 0
+        if ($row.native_skill_details) {
+            $addedNativeDetails = Add-SkillDetailsToTally $tally $row.native_skill_details $nativeSource $slotName $row.name
+        }
+        if ($addedNativeDetails -eq 0 -and $row.native_skills) {
             foreach ($skill in ($row.native_skills -split ';')) {
-                $skill = $skill.Trim()
-                if (-not $skill) { continue }
-                if (-not $tally.Contains($skill)) {
-                    $tally[$skill] = [ordered]@{ skill_name = $skill; deco_count = 0; native_in = [System.Collections.Generic.List[string]]::new(); charm = '' }
-                }
                 if ($row.kind -eq 'charm') {
-                    $tally[$skill].charm = $row.name
+                    Add-SkillTallyValue $tally $skill $null 'charm' $slotName $row.name
                 } else {
-                    $tally[$skill].native_in.Add($slotName)
+                    Add-SkillTallyValue $tally $skill $null 'native' $slotName ''
                 }
             }
         }
@@ -1097,8 +1366,13 @@ function Build-SkillsTally {
         [pscustomobject][ordered]@{
             skill_name = $_.skill_name
             deco_count = $_.deco_count
+            deco_levels = $_.deco_levels
             native_in  = ($_.native_in -join ";")
+            native_levels = $_.native_levels
             charm      = $_.charm
+            charm_level = $_.charm_level
+            known_total_level = $_.known_total_level
+            has_unknown_level = $_.has_unknown_level
         }
     })
 }
@@ -1305,7 +1579,7 @@ for ($slotIndex = 0; $slotIndex -lt 3; $slotIndex++) {
             "free_val0", "free_val1", "free_val2", "free_val3", "free_val4", "free_val5",
             "bonus_by_creating", "bonus_by_grinding", "grinding_num",
             "customize_or_skill_ids", "decoration_ids", "decoration_names",
-            "native_skills", "decoration_skills"
+            "native_skills", "decoration_skills", "native_skill_details", "decoration_skill_details"
         )
         $writtenCsv += $csvPath
     }
@@ -1323,13 +1597,16 @@ for ($slotIndex = 0; $slotIndex -lt 3; $slotIndex++) {
             "free_val0", "free_val1", "free_val2", "free_val3", "free_val4", "free_val5",
             "bonus_by_creating", "bonus_by_grinding", "grinding_num",
             "customize_or_skill_ids", "decoration_ids", "decoration_names",
-            "native_skills", "decoration_skills"
+            "native_skills", "decoration_skills", "native_skill_details", "decoration_skill_details"
         )
         $writtenCsv += $csvPath
 
         $tallyRows = Build-SkillsTally $equipCurrentSummary.slots
         $csvPath = Join-Path $resolvedOutDir "$prefix-skills-summary.csv"
-        Write-CsvFile $csvPath $tallyRows @("skill_name", "deco_count", "native_in", "charm")
+        Write-CsvFile $csvPath $tallyRows @(
+            "skill_name", "deco_count", "deco_levels", "native_in", "native_levels",
+            "charm", "charm_level", "known_total_level", "has_unknown_level"
+        )
         $writtenCsv += $csvPath
     }
 

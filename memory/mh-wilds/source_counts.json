@@ -20,6 +20,11 @@
     "source": "https://www.gamerguides.com/monster-hunter-wilds/database/armor"
   },
   {
+    "file": "armor.csv Skill Details / armor_normalized.csv SkillDetails",
+    "rows": 528,
+    "source": "https://mhwilds.kiranico.com/data/armor-series"
+  },
+  {
     "file": "talismans.csv",
     "rows": 171,
     "source": "https://www.gamerguides.com/monster-hunter-wilds/database/talismans"
