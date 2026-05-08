@@ -53,7 +53,9 @@ function Write-CsvFile {
         [Parameter(Mandatory = $true)]
         [string]$Path,
 
-        [object[]]$Rows
+        [object[]]$Rows,
+
+        [string[]]$Columns
     )
 
     if ($null -eq $Rows) {
@@ -61,7 +63,13 @@ function Write-CsvFile {
     }
 
     if ($Rows.Count -eq 0) {
-        Set-Content -LiteralPath $Path -Value "" -Encoding UTF8
+        if ($Columns -and $Columns.Count -gt 0) {
+            $header = @($Columns | ForEach-Object { '"' + ($_ -replace '"', '""') + '"' }) -join ","
+            Set-Content -LiteralPath $Path -Value $header -Encoding UTF8
+        }
+        else {
+            Set-Content -LiteralPath $Path -Value "" -Encoding UTF8
+        }
         return
     }
 
@@ -248,6 +256,20 @@ function Get-FieldValue {
     return $field.value
 }
 
+function Test-ClassHasField {
+    param(
+        $Class,
+        [Parameter(Mandatory = $true)]
+        [string]$Name
+    )
+
+    if ($null -eq $Class -or -not $Class.fields) {
+        return $false
+    }
+
+    return $null -ne (Get-Field -Class $Class -Name $Name)
+}
+
 function Convert-ScalarValue {
     param($Value)
 
@@ -424,6 +446,11 @@ function Summarize-ReportArray {
     $records = @()
     foreach ($entry in Get-ArrayValues $array) {
         $row = Select-Fields $entry @("FixedId", "EnemyState", "SlayingNum", "CaptureNum", "MixSize", "MinSize", "MaxSize", "MaxWeight")
+        $fixedId = if ($row.Contains("fixed_id")) { [int64]$row["fixed_id"] } else { 0 }
+        if ($fixedId -eq 0) {
+            continue
+        }
+
         $interesting = $false
         foreach ($key in @("enemy_state", "slaying_num", "capture_num", "mix_size", "min_size", "max_size", "max_weight")) {
             if ($row.Contains($key) -and [int64]$row[$key] -ne 0) {
@@ -666,19 +693,21 @@ function Summarize-ProfileSlots {
 
     $slots = @()
     foreach ($slot in @($Json.slots)) {
+        $basicData = $slot.basic_data
+        $topFields = $slot.top_fields
         $slots += [pscustomobject]([ordered]@{
             slot_index = $slot.slot_index
             active = $slot.active
-            hunter_name = $slot.hunter_name
-            palico_name = $slot.palico_name
-            seikret_name = $slot.seikret_name
-            pugee_name = $slot.pugee_name
-            has_item = $slot.has_item
-            has_equip = $slot.has_equip
-            has_mission = $slot.has_mission
-            has_animal = $slot.has_animal
-            has_collection = $slot.has_collection
-            has_enemy_report = $slot.has_enemy_report
+            hunter_name = Convert-ScalarValue (Get-FieldValue -Class $basicData -Name "CharName")
+            palico_name = Convert-ScalarValue (Get-FieldValue -Class $basicData -Name "OtomoName")
+            seikret_name = Convert-ScalarValue (Get-FieldValue -Class $basicData -Name "SeikretName")
+            pugee_name = Convert-ScalarValue (Get-FieldValue -Class $basicData -Name "PugeeName")
+            has_item = [bool]$slot.item_storage_present
+            has_equip = [bool]$slot.equipment_storage_present
+            has_mission = Test-ClassHasField -Class $topFields -Name "_Mission"
+            has_animal = Test-ClassHasField -Class $topFields -Name "_Animal"
+            has_collection = Test-ClassHasField -Class $topFields -Name "_Collection"
+            has_enemy_report = Test-ClassHasField -Class $topFields -Name "_EnemyReport"
         })
     }
 
@@ -738,7 +767,10 @@ if ($null -ne $interpreted) {
     $written += $path
 
     $csvPath = Join-Path $resolvedOutDir "profile-summary.csv"
-    Write-CsvFile $csvPath @($profileSummary.slots)
+    Write-CsvFile $csvPath @($profileSummary.slots) @(
+        "slot_index", "active", "hunter_name", "palico_name", "seikret_name", "pugee_name",
+        "has_item", "has_equip", "has_mission", "has_animal", "has_collection", "has_enemy_report"
+    )
     $written += $csvPath
 }
 
@@ -753,7 +785,7 @@ for ($slotIndex = 0; $slotIndex -lt 3; $slotIndex++) {
         $written += $path
 
         $csvPath = Join-Path $resolvedOutDir "$prefix-inventory-summary.csv"
-        Write-CsvFile $csvPath @($itemSummary.items)
+        Write-CsvFile $csvPath @($itemSummary.items) @("item_id_fixed", "item_enum", "item_name", "quantity")
         $written += $csvPath
     }
 
@@ -765,7 +797,9 @@ for ($slotIndex = 0; $slotIndex -lt 3; $slotIndex++) {
         $written += $path
 
         $csvPath = Join-Path $resolvedOutDir "$prefix-fishing-summary.csv"
-        Write-CsvFile $csvPath @($fishSummary.records)
+        Write-CsvFile $csvPath @($fishSummary.records) @(
+            "fixed_id", "enemy_enum", "name", "enemy_state", "capture_num", "max_size", "max_weight"
+        )
         $written += $csvPath
     }
 
@@ -777,7 +811,10 @@ for ($slotIndex = 0; $slotIndex -lt 3; $slotIndex++) {
         $written += $path
 
         $csvPath = Join-Path $resolvedOutDir "$prefix-monster-report-summary.csv"
-        Write-CsvFile $csvPath (Convert-MonsterSummaryToRows $monsterSummary)
+        Write-CsvFile $csvPath (Convert-MonsterSummaryToRows $monsterSummary) @(
+            "section", "fixed_id", "enemy_enum", "name", "enemy_state", "slaying_num",
+            "capture_num", "mix_size", "min_size", "max_size", "max_weight"
+        )
         $written += $csvPath
     }
 
@@ -789,7 +826,9 @@ for ($slotIndex = 0; $slotIndex -lt 3; $slotIndex++) {
         $written += $path
 
         $csvPath = Join-Path $resolvedOutDir "$prefix-endemic-summary.csv"
-        Write-CsvFile $csvPath (Convert-EndemicSummaryToRows $endemicSummary)
+        Write-CsvFile $csvPath (Convert-EndemicSummaryToRows $endemicSummary) @(
+            "section", "em_id", "enemy_enum", "name", "count", "lock_states", "option_tags"
+        )
         $written += $csvPath
     }
 
