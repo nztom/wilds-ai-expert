@@ -18,6 +18,11 @@ Local knowledge base and working context for a Monster Hunter Wilds assistant. I
 - `tools/ree-save-editor/`: submodule for RE Engine save tooling. Default use is read-only copied-save inspection.
 - `tools/knowledge-refresh/`: public knowledge-base refresh helpers that update tracked data under `memory/mh-wilds/`.
 - `tools/save-inspection/`: repo-owned save interpretation helpers. The runner temporarily stages helper source into the submodule, writes expanded JSON dumps under `memory/private-save/dumps/`, removes the temporary submodule file, and the summarizer writes resolved JSON/CSV summaries under `memory/private-save/summaries/`.
+- `docs/development.md`: developer and tooling prerequisites, including PowerShell 7, Git submodules, Rust/Cargo, save-inspection builds, and knowledge-refresh scripts.
+
+## Development Docs
+
+See `docs/development.md` before running repo scripts or building save-inspection tooling.
 
 ## Public Memory Contents
 
@@ -62,26 +67,8 @@ When multiple copied saves exist, check `memory/private-save/save-inspection.con
 
 `ree-dump` remains useful as a lower-level validation/decryption tool. Always update the submodule before building:
 
-```powershell
-git submodule update --remote -- tools/ree-save-editor
-```
-
-Build with Cargo cache and target output kept inside this repo:
-
-```powershell
-New-Item -ItemType Directory -Force .cargo-home, .cargo-target
-$env:CARGO_HOME = (Resolve-Path '.\.cargo-home').Path
-$env:CARGO_TARGET_DIR = (Resolve-Path '.\.cargo-target').Path
-cargo build --manifest-path tools\ree-save-editor\Cargo.toml --release --bin ree-dump
-```
-
-The resulting executable is:
-
-```text
-.cargo-target\release\ree-dump.exe
-```
+See `docs/development.md` for submodule, Cargo, and `ree-dump` build commands.
 
 ## Git Notes
 
-- `.cargo-home/`, `.cargo-target/`, and `memory/private-save/` are ignored.
-- The `ree-save-editor` submodule tracks upstream `main`, but like all submodules, the parent repo still records a pinned commit.
+- `.cargo-home/`, `.cargo-target/`, and `memory/private-save/` are ignored. See `docs/development.md` for tooling details.

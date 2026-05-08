@@ -4,6 +4,10 @@ Last updated: 2026-05-08
 
 This note documents the read-only workflow for interpreting a Monster Hunter Wilds save with the `tools/ree-save-editor/` submodule. Keep user-specific copied saves, expanded JSON dumps, compact summaries, CSVs, and interpreted outputs under ignored `memory/private-save/`; keep only general process notes here.
 
+## Prerequisites
+
+Before running save-inspection scripts, read `docs/development.md` for PowerShell 7, Git submodule, Rust/Cargo, network, and copied-save prerequisites.
+
 ## Safety Rules
 
 - Never operate on the live Steam save directly.

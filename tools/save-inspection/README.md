@@ -9,6 +9,10 @@ These helpers support read-only Monster Hunter Wilds save interpretation without
 - `Summarize-MHWildsSaveDump.ps1`: reads the expanded private JSON dump and writes compact private summaries for inventory, owned decorations, monsters, endemic life, fishing, progression, camps, deliveries, and equipment.
 - `save-inspection.config.example.json`: tracked schema example for the ignored active-save profile config at `memory/private-save/save-inspection.config.json`.
 
+## Prerequisites
+
+Before running these helpers, read `docs/development.md` for PowerShell 7, Git submodule, Rust/Cargo, network, and copied-save prerequisites.
+
 ## Usage
 
 First copy the live save into `memory/private-save/raw/`; never run this against the live Steam save path.

@@ -7,6 +7,10 @@ They are separate from `tools/save-inspection/`, which should stay focused on re
 
 - `Update-MHWildsArmorSkillLevels.ps1`: fetches Kiranico armor-series pages and merges per-piece armor skill levels into `memory/mh-wilds/armor.csv` and `memory/mh-wilds/armor_normalized.csv`.
 
+## Prerequisites
+
+Before running refresh helpers, read `docs/development.md` for PowerShell 7 and network prerequisites.
+
 ## Usage
 
 Run from the repository root:
