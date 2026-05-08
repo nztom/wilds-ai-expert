@@ -155,12 +155,57 @@ function Initialize-NameResolver {
     }
 
     return [pscustomobject]@{
+        enums = $enums
+        mappings = $mappings
         item_fixed_enum = $itemFixedEnum
         enemy_fixed_enum = $enemyFixedEnum
         item_message_map = $itemMessageMap
         messages = $messageMap
         enemy_names = $enemyNames
     }
+}
+
+function Resolve-EnumMappedName {
+    param(
+        $Resolver,
+        [Parameter(Mandatory = $true)]
+        [string]$EnumType,
+        $Id
+    )
+
+    $enumName = $null
+    $name = $null
+    if ($null -ne $Resolver -and $null -ne $Id) {
+        $enumMap = Get-ObjectPropertyValue $Resolver.enums $EnumType
+        $messageMap = Get-ObjectPropertyValue $Resolver.mappings $EnumType
+        $enumName = Get-ObjectPropertyValue $enumMap ([string]$Id)
+        if ($enumName -and $null -ne $messageMap) {
+            $guid = Get-ObjectPropertyValue $messageMap $enumName
+            $message = Get-ObjectPropertyValue $Resolver.messages $guid
+            $name = Get-EnglishMessage $message
+        }
+    }
+
+    return [ordered]@{
+        enum = $enumName
+        name = $name
+    }
+}
+
+function Resolve-EnumValue {
+    param(
+        $Resolver,
+        [Parameter(Mandatory = $true)]
+        [string]$EnumType,
+        $Id
+    )
+
+    if ($null -eq $Resolver -or $null -eq $Id) {
+        return $null
+    }
+
+    $enumMap = Get-ObjectPropertyValue $Resolver.enums $EnumType
+    return Get-ObjectPropertyValue $enumMap ([string]$Id)
 }
 
 function Resolve-ItemId {
@@ -380,6 +425,18 @@ function Select-Fields {
     return $result
 }
 
+function Convert-IdArrayToString {
+    param($Value)
+
+    $values = Get-ArrayValues $Value
+    if ($values.Count -eq 0) {
+        return ""
+    }
+
+    $kept = @($values | Where-Object { $null -ne $_ -and [int64]$_ -ne -1 })
+    return ($kept -join ";")
+}
+
 function Summarize-ItemBox {
     param($Json, $Resolver)
 
@@ -402,6 +459,144 @@ function Summarize-ItemBox {
         total_entries = (Get-ArrayValues $Json).Count
         nonzero_entries = $items.Count
         items = $items
+    }
+}
+
+function Get-WeaponIdEnumType {
+    param([string]$WeaponType)
+
+    switch ($WeaponType) {
+        "LIGHT_BOWGUN" { return "app.WeaponDef.LightBowgunId_Fixed" }
+        "HEAVY_BOWGUN" { return "app.WeaponDef.HeavyBowgunId_Fixed" }
+        "BOW" { return "app.WeaponDef.BowId_Fixed" }
+        "ROD" { return "app.WeaponDef.RodId_Fixed" }
+        "CHARGE_AXE" { return "app.WeaponDef.ChargeAxeId_Fixed" }
+        "SLASH_AXE" { return "app.WeaponDef.SlashAxeId_Fixed" }
+        "GUN_LANCE" { return "app.WeaponDef.GunLanceId_Fixed" }
+        "LANCE" { return "app.WeaponDef.LanceId_Fixed" }
+        "WHISTLE" { return "app.WeaponDef.WhistleId_Fixed" }
+        "HAMMER" { return "app.WeaponDef.HammerId_Fixed" }
+        "TACHI" { return "app.WeaponDef.TachiId_Fixed" }
+        "TWIN_SWORD" { return "app.WeaponDef.TwinSwordId_Fixed" }
+        "SHORT_SWORD" { return "app.WeaponDef.ShortSwordId_Fixed" }
+        "LONG_SWORD" { return "app.WeaponDef.LongSwordId_Fixed" }
+        default { return $null }
+    }
+}
+
+function Convert-EquipEntryToRow {
+    param(
+        [Parameter(Mandatory = $true)]
+        $Entry,
+        [int]$Index,
+        $Resolver
+    )
+
+    $category = Convert-ScalarValue (Get-FieldValue -Class $Entry -Name "Category_Gender")
+    $freeVal0 = Convert-ScalarValue (Get-FieldValue -Class $Entry -Name "FreeVal0")
+    $freeVal1 = Convert-ScalarValue (Get-FieldValue -Class $Entry -Name "FreeVal1")
+    $freeVal2 = Convert-ScalarValue (Get-FieldValue -Class $Entry -Name "FreeVal2")
+    $freeVal3 = Convert-ScalarValue (Get-FieldValue -Class $Entry -Name "FreeVal3")
+    $freeVal4 = Convert-ScalarValue (Get-FieldValue -Class $Entry -Name "FreeVal4")
+    $freeVal5 = Convert-ScalarValue (Get-FieldValue -Class $Entry -Name "FreeVal5")
+    $bonusByCreating = Convert-ScalarValue (Get-FieldValue -Class $Entry -Name "BonusByCreating")
+    $bonusByGrinding = Convert-ScalarValue (Get-FieldValue -Class $Entry -Name "BonusByGrinding")
+    $grindingNum = Convert-ScalarValue (Get-FieldValue -Class $Entry -Name "GrindingNum")
+    $customizeIds = Convert-IdArrayToString (Get-FieldValue -Class $Entry -Name "BowgunCustomizeId")
+    $decorationIds = Convert-IdArrayToString (Get-FieldValue -Class $Entry -Name "EquipmentAccessoryIdArray")
+
+    $hasScalarData = @($freeVal0, $freeVal1, $freeVal2, $freeVal3, $freeVal4, $freeVal5, $bonusByCreating, $bonusByGrinding, $grindingNum) |
+        Where-Object { $null -ne $_ -and [int64]$_ -ne 0 }
+    if ([int64]$category -eq 141 -and $hasScalarData.Count -eq 0 -and -not $customizeIds -and -not $decorationIds) {
+        return $null
+    }
+
+    $kind = "unknown"
+    $type = $null
+    $enum = $null
+    $name = $null
+    $part = $null
+
+    if ([int64]$category -eq 0 -or [int64]$category -eq 1) {
+        $kind = "armor"
+        $resolved = Resolve-EnumMappedName $Resolver "app.ArmorDef.SERIES" $freeVal0
+        $part = Resolve-EnumValue $Resolver "app.ArmorDef.ARMOR_PARTS" $freeVal1
+        $enum = $resolved["enum"]
+        $type = $part
+        if ($resolved["name"] -and $part) {
+            $name = "$($resolved["name"]) $part"
+        }
+        else {
+            $name = $resolved["name"]
+        }
+    }
+    elseif ([int64]$category -eq 21) {
+        $kind = "charm"
+        $resolved = Resolve-EnumMappedName $Resolver "app.ArmorDef.AmuletType" $freeVal0
+        $enum = $resolved["enum"]
+        $name = $resolved["name"]
+    }
+    else {
+        $weaponType = Resolve-EnumValue $Resolver "app.WeaponDef.TYPE_Fixed" $category
+        $weaponIdEnumType = Get-WeaponIdEnumType $weaponType
+        if ($weaponIdEnumType) {
+            $kind = "weapon"
+            $type = $weaponType
+            $resolved = Resolve-EnumMappedName $Resolver $weaponIdEnumType $freeVal0
+            $enum = $resolved["enum"]
+            $name = $resolved["name"]
+        }
+    }
+
+    return [pscustomobject]([ordered]@{
+        index = $Index
+        kind = $kind
+        category_gender = $category
+        type = $type
+        enum = $enum
+        name = $name
+        armor_part = $part
+        free_val0 = $freeVal0
+        free_val1 = $freeVal1
+        free_val2 = $freeVal2
+        free_val3 = $freeVal3
+        free_val4 = $freeVal4
+        free_val5 = $freeVal5
+        bonus_by_creating = $bonusByCreating
+        bonus_by_grinding = $bonusByGrinding
+        grinding_num = $grindingNum
+        customize_or_skill_ids = $customizeIds
+        decoration_ids = $decorationIds
+    })
+}
+
+function Summarize-EquipBox {
+    param($Json, $Resolver)
+
+    $rows = @()
+    $index = 0
+    foreach ($entry in Get-ArrayValues $Json) {
+        $row = Convert-EquipEntryToRow -Entry $entry -Index $index -Resolver $Resolver
+        if ($null -ne $row) {
+            $rows += $row
+        }
+        $index++
+    }
+
+    $byKind = [ordered]@{}
+    foreach ($group in ($rows | Group-Object kind | Sort-Object Name)) {
+        $byKind[$group.Name] = $group.Count
+    }
+
+    return [ordered]@{
+        total_entries = (Get-ArrayValues $Json).Count
+        nonempty_entries = $rows.Count
+        counts_by_kind = $byKind
+        entries = $rows
+        caveats = @(
+            "Equipment save fields are partly generic. Weapons, armor series/parts, and charms are resolved where local enum message assets support them.",
+            "Decoration/customize fields are currently emitted as internal IDs because the local assets do not expose a complete decoration ID-to-name map."
+        )
     }
 }
 
@@ -789,6 +984,23 @@ for ($slotIndex = 0; $slotIndex -lt 3; $slotIndex++) {
         $written += $csvPath
     }
 
+    $equipBox = Read-JsonFile (Join-Path $resolvedDumpDir "$prefix-equip-box.json")
+    if ($null -ne $equipBox) {
+        $equipSummary = Summarize-EquipBox $equipBox $resolver
+        $path = Join-Path $resolvedOutDir "$prefix-equip-summary.json"
+        Write-JsonFile $path $equipSummary
+        $written += $path
+
+        $csvPath = Join-Path $resolvedOutDir "$prefix-equip-summary.csv"
+        Write-CsvFile $csvPath @($equipSummary.entries) @(
+            "index", "kind", "category_gender", "type", "enum", "name", "armor_part",
+            "free_val0", "free_val1", "free_val2", "free_val3", "free_val4", "free_val5",
+            "bonus_by_creating", "bonus_by_grinding", "grinding_num",
+            "customize_or_skill_ids", "decoration_ids"
+        )
+        $written += $csvPath
+    }
+
     $fish = Read-JsonFile (Join-Path $resolvedDumpDir "$prefix-fish-captures.json")
     if ($null -ne $fish) {
         $fishSummary = Summarize-FishCaptures $fish $resolver
@@ -832,7 +1044,7 @@ for ($slotIndex = 0; $slotIndex -lt 3; $slotIndex++) {
         $written += $csvPath
     }
 
-    foreach ($name in @("story", "mission", "quest-record", "delivery-bounty", "camp", "equip-box")) {
+    foreach ($name in @("story", "mission", "quest-record", "delivery-bounty", "camp")) {
         $json = Read-JsonFile (Join-Path $resolvedDumpDir "$prefix-$name.json")
         if ($null -ne $json) {
             $summaryName = $name -replace "-box$", ""

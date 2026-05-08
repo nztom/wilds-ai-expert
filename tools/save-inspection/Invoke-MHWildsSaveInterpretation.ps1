@@ -74,6 +74,7 @@ try {
     New-Item -ItemType Directory -Force -Path $outputDir | Out-Null
     Remove-Item -LiteralPath (Join-Path $outputDir "interpreted-summary.json") -Force -ErrorAction SilentlyContinue
     Get-ChildItem -LiteralPath $outputDir -File -Filter "slot*-equip-box.json" -ErrorAction SilentlyContinue | Remove-Item -Force
+    Get-ChildItem -LiteralPath $outputDir -File -Filter "slot*-equip-current.json" -ErrorAction SilentlyContinue | Remove-Item -Force
     Get-ChildItem -LiteralPath $outputDir -File -Filter "slot*-item-box.json" -ErrorAction SilentlyContinue | Remove-Item -Force
     Get-ChildItem -LiteralPath $outputDir -File -Filter "slot*-mission.json" -ErrorAction SilentlyContinue | Remove-Item -Force
     Get-ChildItem -LiteralPath $outputDir -File -Filter "slot*-endemic-captures.json" -ErrorAction SilentlyContinue | Remove-Item -Force
@@ -83,6 +84,7 @@ try {
     Get-ChildItem -LiteralPath $outputDir -File -Filter "slot*-quest-record.json" -ErrorAction SilentlyContinue | Remove-Item -Force
     Get-ChildItem -LiteralPath $outputDir -File -Filter "slot*-delivery-bounty.json" -ErrorAction SilentlyContinue | Remove-Item -Force
     Get-ChildItem -LiteralPath $outputDir -File -Filter "slot*-camp.json" -ErrorAction SilentlyContinue | Remove-Item -Force
+    Get-ChildItem -LiteralPath $outputDir -File -Filter "slot*-hunter-profile.json" -ErrorAction SilentlyContinue | Remove-Item -Force
     Copy-Item -LiteralPath $helperSource -Destination $helperDestination -Force
 
     Push-Location $submodule

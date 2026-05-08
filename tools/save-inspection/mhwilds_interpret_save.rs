@@ -260,6 +260,16 @@ fn extract_equip_box(
     Some(array_to_json_full(arr, type_map, crc_map, 0, 4))
 }
 
+// max_depth=3: _Equip fields(0) -> current index classes/arrays(1) -> values(2)
+fn extract_equip_current(
+    slot: &Class,
+    type_map: &TypeMap,
+    crc_map: &HashMap<u32, &TypeInfo>,
+) -> Option<Value> {
+    let equip = get_field(slot, &["_Equip"]).and_then(as_class)?;
+    Some(class_to_json_full(equip, type_map, crc_map, 0, 3))
+}
+
 // max_depth=2: item class(0) → ID and count fields(1)
 fn extract_item_box(
     slot: &Class,
@@ -353,6 +363,16 @@ fn extract_camp(
     Some(class_to_json_full(camp, type_map, crc_map, 0, 3))
 }
 
+// max_depth=3: _HunterProfile fields(0) -> counter arrays/classes(1) -> values(2)
+fn extract_hunter_profile(
+    slot: &Class,
+    type_map: &TypeMap,
+    crc_map: &HashMap<u32, &TypeInfo>,
+) -> Option<Value> {
+    let hunter_profile = get_field(slot, &["_HunterProfile"]).and_then(as_class)?;
+    Some(class_to_json_full(hunter_profile, type_map, crc_map, 0, 3))
+}
+
 fn get_field<'a>(class: &'a Class, names: &[&str]) -> Option<&'a FieldValue> {
     for name in names {
         let hash = TypeMap::get_hash(name);
@@ -442,6 +462,12 @@ fn main() -> Result<(), Box<dyn Error>> {
                 if let Some(v) = extract_equip_box(slot, &type_map, &crc_map) {
                     write_json(&out_dir.join(format!("slot{slot_index}-equip-box.json")), &v)?;
                 }
+                if let Some(v) = extract_equip_current(slot, &type_map, &crc_map) {
+                    write_json(
+                        &out_dir.join(format!("slot{slot_index}-equip-current.json")),
+                        &v,
+                    )?;
+                }
                 if let Some(v) = extract_item_box(slot, &type_map, &crc_map) {
                     write_json(&out_dir.join(format!("slot{slot_index}-item-box.json")), &v)?;
                 }
@@ -483,6 +509,12 @@ fn main() -> Result<(), Box<dyn Error>> {
                 }
                 if let Some(v) = extract_camp(slot, &type_map, &crc_map) {
                     write_json(&out_dir.join(format!("slot{slot_index}-camp.json")), &v)?;
+                }
+                if let Some(v) = extract_hunter_profile(slot, &type_map, &crc_map) {
+                    write_json(
+                        &out_dir.join(format!("slot{slot_index}-hunter-profile.json")),
+                        &v,
+                    )?;
                 }
             }
         }
