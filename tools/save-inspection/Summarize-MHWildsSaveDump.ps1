@@ -515,16 +515,17 @@ function Convert-EquipEntryToRow {
     $type = $null
     $enum = $null
     $name = $null
-    $part = $null
+    $armorPart = $null
+    $artianBase = $null
 
     if ([int64]$category -eq 0 -or [int64]$category -eq 1) {
         $kind = "armor"
         $resolved = Resolve-EnumMappedName $Resolver "app.ArmorDef.SERIES" $freeVal0
-        $part = Resolve-EnumValue $Resolver "app.ArmorDef.ARMOR_PARTS" $freeVal1
+        $armorPart = Resolve-EnumValue $Resolver "app.ArmorDef.ARMOR_PARTS" $freeVal1
         $enum = $resolved["enum"]
-        $type = $part
-        if ($resolved["name"] -and $part) {
-            $name = "$($resolved["name"]) $part"
+        $type = $armorPart
+        if ($resolved["name"] -and $armorPart) {
+            $name = "$($resolved["name"]) $armorPart"
         }
         else {
             $name = $resolved["name"]
@@ -542,9 +543,17 @@ function Convert-EquipEntryToRow {
         if ($weaponIdEnumType) {
             $kind = "weapon"
             $type = $weaponType
-            $resolved = Resolve-EnumMappedName $Resolver $weaponIdEnumType $freeVal0
+            # For Artian weapons (GrindingNum > 0), FreeVal1 holds the Artian weapon ID
+            # and FreeVal0 holds the base weapon used to craft it.
+            $isArtian = $null -ne $grindingNum -and [int64]$grindingNum -gt 0
+            $weaponId = if ($isArtian) { $freeVal1 } else { $freeVal0 }
+            $resolved = Resolve-EnumMappedName $Resolver $weaponIdEnumType $weaponId
             $enum = $resolved["enum"]
             $name = $resolved["name"]
+            if ($isArtian) {
+                $baseResolved = Resolve-EnumMappedName $Resolver $weaponIdEnumType $freeVal0
+                $artianBase = $baseResolved["name"]
+            }
         }
     }
 
@@ -555,7 +564,8 @@ function Convert-EquipEntryToRow {
         type = $type
         enum = $enum
         name = $name
-        armor_part = $part
+        armor_part = $armorPart
+        artian_base_weapon = $artianBase
         free_val0 = $freeVal0
         free_val1 = $freeVal1
         free_val2 = $freeVal2
@@ -993,7 +1003,7 @@ for ($slotIndex = 0; $slotIndex -lt 3; $slotIndex++) {
 
         $csvPath = Join-Path $resolvedOutDir "$prefix-equip-summary.csv"
         Write-CsvFile $csvPath @($equipSummary.entries) @(
-            "index", "kind", "category_gender", "type", "enum", "name", "armor_part",
+            "index", "kind", "category_gender", "type", "enum", "name", "armor_part", "artian_base_weapon",
             "free_val0", "free_val1", "free_val2", "free_val3", "free_val4", "free_val5",
             "bonus_by_creating", "bonus_by_grinding", "grinding_num",
             "customize_or_skill_ids", "decoration_ids"
