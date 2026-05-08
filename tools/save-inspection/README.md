@@ -30,7 +30,7 @@ After interpretation, create the smaller working summaries:
   -DumpDir .\memory\private-save\dumps\data001Slot-YYYYMMDD-HHMMSS
 ```
 
-By default, summaries are written to `memory\private-save\summaries\<copy-id>\`. The script also resolves item, monster, endemic-life, and fish names from the local Wilds assets in the `ree-save-editor` submodule. Use `-NoResolveNames` for a faster internal-ID-only pass.
+By default, summaries are written to the same dump directory under `memory\private-save\dumps\<copy-id>\`. The script resolves item, monster, endemic-life, and fish names from local Wilds assets in the `ree-save-editor` submodule, so the generated CSV files are the friendliest source for analysis. Prefer the `*-summary.csv` outputs and avoid reading the JSON summary files unless you need lower-level debugging details.
 
 After creating or switching a copied save, update the private config:
 

@@ -55,7 +55,7 @@ The preferred workflow is documented in `memory/mh-wilds/save_inspection_workflo
   -DumpDir .\memory\private-save\dumps\data001Slot-YYYYMMDD-HHMMSS
 ```
 
-`Summarize-MHWildsSaveDump.ps1` resolves item, monster, endemic-life, and fish names from local Wilds assets and writes CSVs for normal inspection. Use `-NoResolveNames` for a faster internal-ID-only pass.
+`Summarize-MHWildsSaveDump.ps1` resolves item, monster, endemic-life, and fish names from local Wilds assets and writes CSVs for normal inspection.
 
 When multiple copied saves exist, check `memory/private-save/save-inspection.config.json` before reading private output. Switch `active_profile_id` only when the user asks to use a different copied save or character slot. The tracked schema example is `tools/save-inspection/save-inspection.config.example.json`.
 

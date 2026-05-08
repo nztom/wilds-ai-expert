@@ -2,9 +2,7 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$DumpDir,
 
-    [string]$OutDir,
-
-    [switch]$NoResolveNames
+    [string]$OutDir
 )
 
 $ErrorActionPreference = "Stop"
@@ -179,6 +177,109 @@ function Initialize-NameResolver {
         accessory_hash_to_name = $accessoryHashToName
         messages = $messageMap
         enemy_names = $enemyNames
+    }
+}
+
+$script:_armorPartKeywords = [ordered]@{
+    "HELM"  = @("Helm","Headgear","Cap","Mask","Hood","Coif","Crown","Beret","Hat","Eyepatch","Bonnet","Circlet","Visor","Brain","Face")
+    "BODY"  = @("Mail","Plate","Vest","Coat","Body","Jacket","Tunic","Haubergeon","Jerkin","Muscle","Thorax")
+    "ARM"   = @("Vambraces","Bracers","Braces","Sleeve","Grip","Gauntlets","Gloves","Claw")
+    "WAIST" = @("Coil","Belt","Sash","Cord","Tasset","Haramaki")
+    "LEG"   = @("Greaves","Boots","Leggings","Guards","Cuisses","Shinguards","Faulds","Cuish","Feet")
+}
+
+function Initialize-LocalDataResolver {
+    param([Parameter(Mandatory = $true)][string]$RepoRoot)
+
+    $memDir          = Join-Path $RepoRoot "memory\mh-wilds"
+    $skillsCsvPath   = Join-Path $memDir "skills_normalized.csv"
+    $armorCsvPath    = Join-Path $memDir "armor_normalized.csv"
+    $decoCsvPaths    = @(
+        (Join-Path $memDir "decorations_armor_normalized.csv"),
+        (Join-Path $memDir "decorations_weapon_normalized.csv")
+    )
+    foreach ($p in @($skillsCsvPath, $armorCsvPath) + $decoCsvPaths) {
+        if (-not (Test-Path -LiteralPath $p)) {
+            Write-Warning "Local skill data not found at '$p'; native_skills and decoration_skills will be empty."
+            return $null
+        }
+    }
+    Write-Host "Loading local skill data..."
+
+    # Decoration name → list of skill names (handles dual-skill decos via Description)
+    $decoToSkills = @{}
+    foreach ($csvPath in $decoCsvPaths) {
+        foreach ($row in (Import-Csv -LiteralPath $csvPath)) {
+            $title = $row.Title
+            if (-not $title) { continue }
+            if ($row.Description -match 'grants the (.+?) and (.+?) skills') {
+                $decoToSkills[$title] = @($matches[1].Trim(), ($matches[2] -replace '[.…]+$', '').Trim())
+            } elseif ($row.Skill) {
+                $decoToSkills[$title] = @($row.Skill)
+            }
+        }
+    }
+
+    # Armor series+part → piece title lookup: (seriesCore|variant|PART_TYPE) → Title
+    $armorRows = @(Import-Csv -LiteralPath $armorCsvPath)
+    $armorKeyToTitle = @{}
+    foreach ($row in $armorRows) {
+        $title = $row.Title; $armorSet = $row.ArmorSet
+        if (-not $title -or -not $armorSet) { continue }
+        $variant    = if ($title -match 'β') { 'β' } elseif ($title -match 'α') { 'α' } else { '' }
+        $seriesCore = ($armorSet -replace '\s*Armor Sets\s*$', '' -replace 'β', '' -replace 'α', '' -replace '\s+', ' ').Trim().ToLower()
+        $partType   = $null
+        foreach ($pt in $script:_armorPartKeywords.Keys) {
+            foreach ($kw in $script:_armorPartKeywords[$pt]) {
+                if ($title -match "(?i)\b$([regex]::Escape($kw))\b") { $partType = $pt; break }
+            }
+            if ($partType) { break }
+        }
+        if (-not $partType) { continue }
+        $key = "$seriesCore|$variant|$partType"
+        if (-not $armorKeyToTitle.ContainsKey($key)) { $armorKeyToTitle[$key] = $title }
+    }
+
+    # Piece title → skills and charm name → skills: invert ObtainedFrom column
+    $pieceTitleToSkills = @{}
+    foreach ($row in $armorRows) { if ($row.Title) { $pieceTitleToSkills[$row.Title] = [System.Collections.Generic.List[string]]::new() } }
+    $pieceTitles = @($pieceTitleToSkills.Keys)
+    $charmToSkills = @{}
+    $charmRe = [regex]'(?<![a-z])([A-Z][A-Za-z0-9/'' ]+?) Charm (III|II|IV|V|I)(?= |$)'
+    foreach ($skillRow in (Import-Csv -LiteralPath $skillsCsvPath)) {
+        if (-not $skillRow.ObtainedFrom) { continue }
+        $obtained = ' ' + $skillRow.ObtainedFrom + ' '
+        foreach ($title in $pieceTitles) {
+            if ($obtained.IndexOf(" $title ", [System.StringComparison]::Ordinal) -ge 0) {
+                $pieceTitleToSkills[$title].Add($skillRow.Title)
+            }
+        }
+        foreach ($m in $charmRe.Matches($skillRow.ObtainedFrom)) {
+            $cn = "$($m.Groups[1].Value) Charm $($m.Groups[2].Value)"
+            if (-not $charmToSkills.ContainsKey($cn)) { $charmToSkills[$cn] = [System.Collections.Generic.List[string]]::new() }
+            $charmToSkills[$cn].Add($skillRow.Title)
+        }
+    }
+    # Propagate skills to all roman-numeral tiers of each charm base so that
+    # e.g. "Exploiter Charm III" resolves even when only I/II appear in ObtainedFrom.
+    $charmBases = @{}
+    foreach ($cn in @($charmToSkills.Keys)) {
+        if ($cn -match '^(.+? Charm) (III|II|IV|V|I)$') {
+            if (-not $charmBases.ContainsKey($matches[1])) { $charmBases[$matches[1]] = $charmToSkills[$cn] }
+        }
+    }
+    foreach ($base in $charmBases.Keys) {
+        foreach ($suffix in @("I", "II", "III", "IV", "V")) {
+            $fullName = "$base $suffix"
+            if (-not $charmToSkills.ContainsKey($fullName)) { $charmToSkills[$fullName] = $charmBases[$base] }
+        }
+    }
+
+    return [pscustomobject]@{
+        deco_to_skills        = $decoToSkills
+        armor_key_to_title    = $armorKeyToTitle
+        piece_title_to_skills = $pieceTitleToSkills
+        charm_to_skills       = $charmToSkills
     }
 }
 
@@ -551,7 +652,8 @@ function Convert-EquipEntryToRow {
         [Parameter(Mandatory = $true)]
         $Entry,
         [int]$Index,
-        $Resolver
+        $Resolver,
+        $LocalResolver
     )
 
     $category = Convert-ScalarValue (Get-FieldValue -Class $Entry -Name "Category_Gender")
@@ -621,6 +723,41 @@ function Convert-EquipEntryToRow {
         }
     }
 
+    $nativeSkills = ""
+    $decoSkillsStr = ""
+    if ($null -ne $LocalResolver) {
+        # Decoration skills
+        if ($decorationIdFilled.Count -gt 0 -and $decorationNames) {
+            $allDecoSkills = [System.Collections.Generic.List[string]]::new()
+            foreach ($dn in ($decorationNames -split ';')) {
+                $dn = $dn.Trim()
+                if ($dn -and $LocalResolver.deco_to_skills.ContainsKey($dn)) {
+                    foreach ($s in $LocalResolver.deco_to_skills[$dn]) { $allDecoSkills.Add($s) }
+                }
+            }
+            $decoSkillsStr = $allDecoSkills -join ";"
+        }
+        # Native skills from armor piece or charm
+        if ($kind -eq "armor" -and $name) {
+            $lastSpace = $name.LastIndexOf(" ")
+            if ($lastSpace -gt 0) {
+                $partEnum   = $name.Substring($lastSpace + 1)
+                $series     = $name.Substring(0, $lastSpace)
+                $variant    = if ($series -match 'β') { 'β' } elseif ($series -match 'α') { 'α' } else { '' }
+                $seriesCore = ($series -replace 'β', '' -replace 'α', '' -replace '\s+', ' ').Trim().ToLower()
+                $key        = "$seriesCore|$variant|$partEnum"
+                $pieceTitle = $LocalResolver.armor_key_to_title[$key]
+                if ($pieceTitle -and $LocalResolver.piece_title_to_skills.ContainsKey($pieceTitle)) {
+                    $nativeSkills = $LocalResolver.piece_title_to_skills[$pieceTitle] -join ";"
+                }
+            }
+        } elseif ($kind -eq "charm" -and $name) {
+            if ($LocalResolver.charm_to_skills.ContainsKey($name)) {
+                $nativeSkills = $LocalResolver.charm_to_skills[$name] -join ";"
+            }
+        }
+    }
+
     return [pscustomobject]([ordered]@{
         index = $Index
         kind = $kind
@@ -641,16 +778,18 @@ function Convert-EquipEntryToRow {
         customize_or_skill_ids = $customizeIds
         decoration_ids = $decorationIds
         decoration_names = $decorationNames
+        native_skills = $nativeSkills
+        decoration_skills = $decoSkillsStr
     })
 }
 
 function Summarize-EquipBox {
-    param($Json, $Resolver)
+    param($Json, $Resolver, $LocalResolver)
 
     $rows = @()
     $index = 0
     foreach ($entry in Get-ArrayValues $Json) {
-        $row = Convert-EquipEntryToRow -Entry $entry -Index $index -Resolver $Resolver
+        $row = Convert-EquipEntryToRow -Entry $entry -Index $index -Resolver $Resolver -LocalResolver $LocalResolver
         if ($null -ne $row) {
             $rows += $row
         }
@@ -675,7 +814,7 @@ function Summarize-EquipBox {
 }
 
 function Summarize-EquipCurrent {
-    param($Json, $Resolver)
+    param($Json, $Resolver, $LocalResolver)
 
     $slotNames = @("weapon", "head", "chest", "arms", "waist", "legs", "charm")
 
@@ -695,7 +834,7 @@ function Summarize-EquipCurrent {
 
         $slotName = if ($slotPos -lt $slotNames.Count) { $slotNames[$slotPos] } else { "slot_$slotPos" }
         $entry = $boxEntries[$boxIdx]
-        $row = Convert-EquipEntryToRow -Entry $entry -Index $boxIdx -Resolver $Resolver
+        $row = Convert-EquipEntryToRow -Entry $entry -Index $boxIdx -Resolver $Resolver -LocalResolver $LocalResolver
         if ($null -eq $row) {
             continue
         }
@@ -918,6 +1057,52 @@ function Convert-EndemicSummaryToRows {
     return $rows
 }
 
+function Build-SkillsTally {
+    param([object[]]$Rows)
+
+    $tally = [ordered]@{}
+    foreach ($row in $Rows) {
+        $slotName = $row.slot
+        # Skip overflow weapon/equipment slots (slot_7, slot_8, …) — only the 7 named slots count.
+        if ($slotName -like 'slot_*') { continue }
+
+        if ($row.decoration_skills) {
+            foreach ($skill in ($row.decoration_skills -split ';')) {
+                $skill = $skill.Trim()
+                if (-not $skill) { continue }
+                if (-not $tally.Contains($skill)) {
+                    $tally[$skill] = [ordered]@{ skill_name = $skill; deco_count = 0; native_in = [System.Collections.Generic.List[string]]::new(); charm = '' }
+                }
+                $tally[$skill].deco_count++
+            }
+        }
+
+        if ($row.native_skills) {
+            foreach ($skill in ($row.native_skills -split ';')) {
+                $skill = $skill.Trim()
+                if (-not $skill) { continue }
+                if (-not $tally.Contains($skill)) {
+                    $tally[$skill] = [ordered]@{ skill_name = $skill; deco_count = 0; native_in = [System.Collections.Generic.List[string]]::new(); charm = '' }
+                }
+                if ($row.kind -eq 'charm') {
+                    $tally[$skill].charm = $row.name
+                } else {
+                    $tally[$skill].native_in.Add($slotName)
+                }
+            }
+        }
+    }
+
+    return @($tally.Values | Sort-Object skill_name | ForEach-Object {
+        [pscustomobject][ordered]@{
+            skill_name = $_.skill_name
+            deco_count = $_.deco_count
+            native_in  = ($_.native_in -join ";")
+            charm      = $_.charm
+        }
+    })
+}
+
 function Summarize-GenericClass {
     param($Json)
 
@@ -1063,25 +1248,33 @@ if ($resolvedOutDir -match "\\2246340\\|\\Steam\\userdata\\|\\win64_save\\") {
 }
 
 New-Item -ItemType Directory -Force -Path $resolvedOutDir | Out-Null
-Get-ChildItem -LiteralPath $resolvedOutDir -File -Filter "*.json" -ErrorAction SilentlyContinue | Remove-Item -Force
-Get-ChildItem -LiteralPath $resolvedOutDir -File -Filter "*.csv" -ErrorAction SilentlyContinue | Remove-Item -Force
+$jsonOutDir = Join-Path $resolvedOutDir "json"
+New-Item -ItemType Directory -Force -Path $jsonOutDir | Out-Null
+foreach ($pattern in @("*-summary.csv", "profile-summary.csv", "index.json")) {
+    Get-ChildItem -LiteralPath $resolvedOutDir -File -Filter $pattern -ErrorAction SilentlyContinue | Remove-Item -Force
+}
+foreach ($pattern in @("*-summary.json", "profile-summary.json")) {
+    Get-ChildItem -LiteralPath $jsonOutDir -File -Filter $pattern -ErrorAction SilentlyContinue | Remove-Item -Force
+}
 
-$written = @()
-$resolver = if ($NoResolveNames) { $null } else { Initialize-NameResolver $repoRoot }
+$writtenJson = @()
+$writtenCsv = @()
+$resolver = Initialize-NameResolver $repoRoot
+$localResolver = Initialize-LocalDataResolver $repoRoot
 
 $interpreted = Read-JsonFile (Join-Path $resolvedDumpDir "interpreted-summary.json")
 if ($null -ne $interpreted) {
     $profileSummary = Summarize-ProfileSlots $interpreted
-    $path = Join-Path $resolvedOutDir "profile-summary.json"
+    $path = Join-Path $jsonOutDir "profile-summary.json"
     Write-JsonFile $path $profileSummary
-    $written += $path
+    $writtenJson += $path
 
     $csvPath = Join-Path $resolvedOutDir "profile-summary.csv"
     Write-CsvFile $csvPath @($profileSummary.slots) @(
         "slot_index", "active", "hunter_name", "palico_name", "seikret_name", "pugee_name",
         "has_item", "has_equip", "has_mission", "has_animal", "has_collection", "has_enemy_report"
     )
-    $written += $csvPath
+    $writtenCsv += $csvPath
 }
 
 for ($slotIndex = 0; $slotIndex -lt 3; $slotIndex++) {
@@ -1090,90 +1283,97 @@ for ($slotIndex = 0; $slotIndex -lt 3; $slotIndex++) {
     $itemBox = Read-JsonFile (Join-Path $resolvedDumpDir "$prefix-item-box.json")
     if ($null -ne $itemBox) {
         $itemSummary = Summarize-ItemBox $itemBox $resolver
-        $path = Join-Path $resolvedOutDir "$prefix-inventory-summary.json"
+        $path = Join-Path $jsonOutDir "$prefix-inventory-summary.json"
         Write-JsonFile $path $itemSummary
-        $written += $path
+        $writtenJson += $path
 
         $csvPath = Join-Path $resolvedOutDir "$prefix-inventory-summary.csv"
         Write-CsvFile $csvPath @($itemSummary.items) @("item_id_fixed", "item_enum", "item_name", "quantity")
-        $written += $csvPath
+        $writtenCsv += $csvPath
     }
 
     $equipBox = Read-JsonFile (Join-Path $resolvedDumpDir "$prefix-equip-box.json")
     if ($null -ne $equipBox) {
-        $equipSummary = Summarize-EquipBox $equipBox $resolver
-        $path = Join-Path $resolvedOutDir "$prefix-equip-summary.json"
+        $equipSummary = Summarize-EquipBox $equipBox $resolver $localResolver
+        $path = Join-Path $jsonOutDir "$prefix-equip-summary.json"
         Write-JsonFile $path $equipSummary
-        $written += $path
+        $writtenJson += $path
 
         $csvPath = Join-Path $resolvedOutDir "$prefix-equip-summary.csv"
         Write-CsvFile $csvPath @($equipSummary.entries) @(
             "index", "kind", "category_gender", "type", "enum", "name", "armor_part",
             "free_val0", "free_val1", "free_val2", "free_val3", "free_val4", "free_val5",
             "bonus_by_creating", "bonus_by_grinding", "grinding_num",
-            "customize_or_skill_ids", "decoration_ids", "decoration_names"
+            "customize_or_skill_ids", "decoration_ids", "decoration_names",
+            "native_skills", "decoration_skills"
         )
-        $written += $csvPath
+        $writtenCsv += $csvPath
     }
 
     $equipCurrent = Read-JsonFile (Join-Path $resolvedDumpDir "$prefix-equip-current.json")
     if ($null -ne $equipCurrent) {
-        $equipCurrentSummary = Summarize-EquipCurrent $equipCurrent $resolver
-        $path = Join-Path $resolvedOutDir "$prefix-equip-current-summary.json"
+        $equipCurrentSummary = Summarize-EquipCurrent $equipCurrent $resolver $localResolver
+        $path = Join-Path $jsonOutDir "$prefix-equip-current-summary.json"
         Write-JsonFile $path $equipCurrentSummary
-        $written += $path
+        $writtenJson += $path
 
         $csvPath = Join-Path $resolvedOutDir "$prefix-equip-current-summary.csv"
         Write-CsvFile $csvPath @($equipCurrentSummary.slots) @(
             "slot", "slot_index", "index", "kind", "category_gender", "type", "enum", "name", "armor_part",
             "free_val0", "free_val1", "free_val2", "free_val3", "free_val4", "free_val5",
             "bonus_by_creating", "bonus_by_grinding", "grinding_num",
-            "customize_or_skill_ids", "decoration_ids", "decoration_names"
+            "customize_or_skill_ids", "decoration_ids", "decoration_names",
+            "native_skills", "decoration_skills"
         )
-        $written += $csvPath
+        $writtenCsv += $csvPath
+
+        $tallyRows = Build-SkillsTally $equipCurrentSummary.slots
+        $csvPath = Join-Path $resolvedOutDir "$prefix-skills-summary.csv"
+        Write-CsvFile $csvPath $tallyRows @("skill_name", "deco_count", "native_in", "charm")
+        $writtenCsv += $csvPath
     }
 
     $fish = Read-JsonFile (Join-Path $resolvedDumpDir "$prefix-fish-captures.json")
     if ($null -ne $fish) {
         $fishSummary = Summarize-FishCaptures $fish $resolver
-        $path = Join-Path $resolvedOutDir "$prefix-fishing-summary.json"
+        $path = Join-Path $jsonOutDir "$prefix-fishing-summary.json"
         Write-JsonFile $path $fishSummary
-        $written += $path
+        $writtenJson += $path
 
         $csvPath = Join-Path $resolvedOutDir "$prefix-fishing-summary.csv"
         Write-CsvFile $csvPath @($fishSummary.records) @(
             "fixed_id", "enemy_enum", "name", "enemy_state", "capture_num", "max_size", "max_weight"
         )
-        $written += $csvPath
+        $writtenCsv += $csvPath
     }
 
     $monster = Read-JsonFile (Join-Path $resolvedDumpDir "$prefix-monster-report.json")
     if ($null -ne $monster) {
         $monsterSummary = Summarize-MonsterReport $monster $resolver
-        $path = Join-Path $resolvedOutDir "$prefix-monster-report-summary.json"
+        $path = Join-Path $jsonOutDir "$prefix-monster-report-summary.json"
         Write-JsonFile $path $monsterSummary
-        $written += $path
+        $writtenJson += $path
 
         $csvPath = Join-Path $resolvedOutDir "$prefix-monster-report-summary.csv"
         Write-CsvFile $csvPath (Convert-MonsterSummaryToRows $monsterSummary) @(
             "section", "fixed_id", "enemy_enum", "name", "enemy_state", "slaying_num",
             "capture_num", "mix_size", "min_size", "max_size", "max_weight"
         )
-        $written += $csvPath
+        $writtenCsv += $csvPath
     }
 
     $endemic = Read-JsonFile (Join-Path $resolvedDumpDir "$prefix-endemic-captures.json")
     if ($null -ne $endemic) {
         $endemicSummary = Summarize-EndemicCaptures $endemic $resolver
-        $path = Join-Path $resolvedOutDir "$prefix-endemic-summary.json"
+        $path = Join-Path $jsonOutDir "$prefix-endemic-summary.json"
         Write-JsonFile $path $endemicSummary
-        $written += $path
+        $writtenJson += $path
 
         $csvPath = Join-Path $resolvedOutDir "$prefix-endemic-summary.csv"
         Write-CsvFile $csvPath (Convert-EndemicSummaryToRows $endemicSummary) @(
             "section", "em_id", "enemy_enum", "name", "count", "lock_states", "option_tags"
         )
-        $written += $csvPath
+        $writtenCsv += $csvPath
     }
 
     foreach ($name in @("story", "mission", "quest-record", "delivery-bounty", "camp")) {
@@ -1181,9 +1381,9 @@ for ($slotIndex = 0; $slotIndex -lt 3; $slotIndex++) {
         if ($null -ne $json) {
             $summaryName = $name -replace "-box$", ""
             $summary = Summarize-GenericClass $json
-            $path = Join-Path $resolvedOutDir "$prefix-$summaryName-summary.json"
+            $path = Join-Path $jsonOutDir "$prefix-$summaryName-summary.json"
             Write-JsonFile $path $summary
-            $written += $path
+            $writtenJson += $path
         }
     }
 }
@@ -1191,11 +1391,13 @@ for ($slotIndex = 0; $slotIndex -lt 3; $slotIndex++) {
 $index = [ordered]@{
     source_dump_dir = $resolvedDumpDir
     output_dir = $resolvedOutDir
+    json_dir = $jsonOutDir
     generated_at = (Get-Date).ToString("yyyy-MM-ddTHH:mm:ssK")
     names_resolved = ($null -ne $resolver)
-    files = @($written | ForEach-Object { Split-Path -Leaf $_ })
+    csv_files = @($writtenCsv | ForEach-Object { Split-Path -Leaf $_ })
+    json_files = @($writtenJson | ForEach-Object { Split-Path -Leaf $_ })
 }
 
 Write-JsonFile (Join-Path $resolvedOutDir "index.json") $index
 
-Write-Host "Wrote $($written.Count + 1) summary files to $resolvedOutDir"
+Write-Host "Wrote $($writtenCsv.Count) CSV and $($writtenJson.Count + 1) JSON summary files to $resolvedOutDir (JSON in json\)"
