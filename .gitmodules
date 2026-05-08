@@ -1,3 +1,4 @@
 [submodule "tools/ree-save-editor"]
 	path = tools/ree-save-editor
 	url = https://github.com/kvasszn/ree-save-editor.git
+	branch = main
