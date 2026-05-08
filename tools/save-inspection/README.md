@@ -6,7 +6,7 @@ These helpers support read-only Monster Hunter Wilds save interpretation without
 
 - `mhwilds_interpret_save.rs`: tracked Rust helper source that is temporarily staged into the `ree-save-editor` Cargo workspace.
 - `Invoke-MHWildsSaveInterpretation.ps1`: updates the submodule, copies the helper into the submodule, runs it against an already-copied save, writes expanded JSON dumps, then removes the temporary source.
-- `Summarize-MHWildsSaveDump.ps1`: reads the expanded private JSON dump and writes compact private summaries for inventory, monsters, endemic life, fishing, progression, camps, deliveries, and equipment.
+- `Summarize-MHWildsSaveDump.ps1`: reads the expanded private JSON dump and writes compact private summaries for inventory, owned decorations, monsters, endemic life, fishing, progression, camps, deliveries, and equipment.
 - `save-inspection.config.example.json`: tracked schema example for the ignored active-save profile config at `memory/private-save/save-inspection.config.json`.
 
 ## Usage
@@ -94,6 +94,9 @@ To adjust extraction depth, edit the `max_depth` literal in the relevant `extrac
 | `slot{N}-delivery-bounty-summary.json` | Delivery/bounty scalar values and nonzero arrays |
 | `slot{N}-camp-summary.json` | Camp scalar values and nonzero arrays |
 | `slot{N}-equip-summary.json` | Equipment-box entries reduced to nonzero scalar fields |
+| `slot{N}-decorations-summary.json` | Loose owned decorations from `_Equip._AccessoryBox`, with type, slot level, skill details, and quantity |
+| `slot{N}-decorations-summary.csv` | CSV form of owned decorations for quick build queries |
+| `slot{N}-decoration-skills-summary.csv` | Skill-oriented rollup of owned decoration quantities and total known skill levels |
 
 Use the expanded dump files when the summary omits a field needed for a new interpretation rule.
 Empty slot CSVs are intentionally written as tiny blank files when a slot has no rows for that table.
@@ -102,3 +105,4 @@ Name resolution path:
 
 - Items: `enumsmhwilds.json` maps fixed item IDs to enum keys; `enums_mappings_mhwilds.json` maps those keys to message GUIDs; `combined_msgs.json` provides the English display string.
 - Monsters, fish, and endemic life: `enumsmhwilds.json` maps fixed enemy IDs to enum keys; `combined_msgs.json` provides `EnemyText_NAME_<enum>` English display strings.
+- Decorations: `_Equip._AccessoryBox` stores decoration IDs and quantities; `enumsmhwilds.json` plus `combined_msgs.json` resolve names, and local `decorations_*_normalized.csv` files add slot type, slot level, rarity, skills, and skill levels.

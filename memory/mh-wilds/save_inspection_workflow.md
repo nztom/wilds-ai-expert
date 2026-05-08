@@ -281,13 +281,15 @@ Both families share `value_preview`, `field_info`, `type_name`, `get_field`, and
 - `slotN-inventory-summary.csv`: nonzero item-box entries with item IDs, enum keys, resolved item names, and quantities.
 - `slotN-equip-summary.csv`: equipment-box entries with kind, type, name, armor part, free vals, and decoration names.
 - `slotN-equip-current-summary.csv`: currently equipped items mapped to named slots (weapon, head, chest, arms, waist, legs, charm).
+- `slotN-decorations-summary.csv`: loose owned decorations from `_Equip._AccessoryBox`, including decoration type, required slot level, rarity, quantity, skills, and skill levels.
+- `slotN-decoration-skills-summary.csv`: skill-oriented rollup of owned decorations, including total decoration quantity and known total skill levels per skill.
 - `slotN-fishing-summary.csv`: observed fish records and capture counts with resolved fish names.
 - `slotN-monster-report-summary.csv`: observed monster/endemic/fish report records with resolved names.
 - `slotN-endemic-summary.csv`: endemic capture entries grouped by resolved `EmId`, with resolved names.
 - `index.json`: manifest of all files written, with separate `csv_files` and `json_files` lists.
 
 **JSON in `json/` subfolder — open only when the user asks for more detail:**
-- `profile-summary.json`, `slotN-inventory-summary.json`, `slotN-equip-summary.json`, `slotN-equip-current-summary.json`, `slotN-fishing-summary.json`, `slotN-monster-report-summary.json`, `slotN-endemic-summary.json`: structured counterparts to the CSVs above, with metadata fields (totals, caveats) not present in the flat CSV.
+- `profile-summary.json`, `slotN-inventory-summary.json`, `slotN-equip-summary.json`, `slotN-equip-current-summary.json`, `slotN-decorations-summary.json`, `slotN-fishing-summary.json`, `slotN-monster-report-summary.json`, `slotN-endemic-summary.json`: structured counterparts to the CSVs above, with metadata fields (totals, caveats) not present in the flat CSV.
 - `slotN-story-summary.json`, `slotN-mission-summary.json`, `slotN-quest-record-summary.json`, `slotN-delivery-bounty-summary.json`, `slotN-camp-summary.json`: scalar fields plus nonzero array entries (JSON only, no CSV counterpart).
 
 Read the CSVs for quick answers. If detail is missing, mention the JSON files are available and wait to be asked. The expanded `dumps/` JSON remains the source of truth when a summary is too lossy. Empty slot CSVs can be tiny blank files when a slot has no rows for that table.

@@ -325,14 +325,20 @@ function Initialize-LocalDataResolver {
         return $details
     }
 
-    # Decoration name → list of skill names/details (handles dual-skill decos via Description)
+    # Decoration name → list of skill names/details/metadata (handles dual-skill decos via Description)
     $decoToSkills = @{}
     $decoToSkillDetails = @{}
+    $decoToType = @{}
+    $decoToSlotLevel = @{}
+    $decoToRarity = @{}
     foreach ($csvPath in $decoCsvPaths) {
         $isArmorDecoration = ([System.IO.Path]::GetFileName($csvPath) -eq "decorations_armor_normalized.csv")
         foreach ($row in (Import-Csv -LiteralPath $csvPath)) {
             $title = $row.Title
             if (-not $title) { continue }
+            $decoToType[$title] = if ($isArmorDecoration) { "armor" } else { "weapon" }
+            $decoToSlotLevel[$title] = $row.SlotLevel
+            $decoToRarity[$title] = $row.Rarity
             $details = @(Get-DecorationSkillDetails $row $isArmorDecoration)
             if ($details.Count -gt 0) {
                 $decoToSkillDetails[$title] = $details
@@ -432,6 +438,9 @@ function Initialize-LocalDataResolver {
     return [pscustomobject]@{
         deco_to_skills              = $decoToSkills
         deco_to_skill_details       = $decoToSkillDetails
+        deco_to_type                = $decoToType
+        deco_to_slot_level          = $decoToSlotLevel
+        deco_to_rarity              = $decoToRarity
         armor_key_to_title          = $armorKeyToTitle
         piece_title_to_skills       = $pieceTitleToSkills
         piece_title_to_skill_details = $pieceTitleToSkillDetails
@@ -1046,6 +1055,122 @@ function Summarize-EquipCurrent {
     }
 }
 
+function Summarize-DecorationBox {
+    param($Json, $Resolver, $LocalResolver)
+
+    $accessoryBox = Get-FieldValue -Class $Json -Name "_AccessoryBox"
+    $rows = @()
+    foreach ($entry in Get-ArrayValues $accessoryBox) {
+        $row = Select-Fields $entry @("ID", "Num")
+        $quantity = if ($row.Contains("num")) { [int64]$row["num"] } else { 0 }
+        if ($quantity -le 0) {
+            continue
+        }
+
+        $accessoryId = $row["id"]
+        $decorationName = Resolve-AccessoryId $Resolver $accessoryId
+        if (-not $decorationName) {
+            $decorationName = [string]$accessoryId
+        }
+
+        $decorationType = ""
+        $slotLevel = ""
+        $rarity = ""
+        $skills = ""
+        $skillDetails = ""
+        if ($null -ne $LocalResolver -and $decorationName) {
+            if ($LocalResolver.deco_to_type.ContainsKey($decorationName)) {
+                $decorationType = $LocalResolver.deco_to_type[$decorationName]
+            }
+            if ($LocalResolver.deco_to_slot_level.ContainsKey($decorationName)) {
+                $slotLevel = $LocalResolver.deco_to_slot_level[$decorationName]
+            }
+            if ($LocalResolver.deco_to_rarity.ContainsKey($decorationName)) {
+                $rarity = $LocalResolver.deco_to_rarity[$decorationName]
+            }
+            if ($LocalResolver.deco_to_skills.ContainsKey($decorationName)) {
+                $skills = $LocalResolver.deco_to_skills[$decorationName] -join ";"
+            }
+            if ($LocalResolver.deco_to_skill_details.ContainsKey($decorationName)) {
+                $skillDetails = & $LocalResolver.format_skill_details @($LocalResolver.deco_to_skill_details[$decorationName])
+            }
+        }
+
+        $rows += [pscustomobject]([ordered]@{
+            accessory_id = $accessoryId
+            decoration_name = $decorationName
+            decoration_type = $decorationType
+            slot_level = $slotLevel
+            rarity = $rarity
+            quantity = $quantity
+            skills = $skills
+            skill_details = $skillDetails
+        })
+    }
+
+    $rows = @($rows | Sort-Object decoration_type, slot_level, decoration_name)
+    return [ordered]@{
+        total_entries = (Get-ArrayValues $accessoryBox).Count
+        owned_entries = $rows.Count
+        decorations = $rows
+        caveats = @(
+            "This reads the loose decoration store from _Equip._AccessoryBox. Slotted decorations on saved equipment are listed separately in equipment summaries.",
+            "Decoration skill levels are inferred from local decoration CSVs; dual-skill decorations include both skills when their description exposes both names."
+        )
+    }
+}
+
+function Build-DecorationSkillsTally {
+    param([object[]]$Rows)
+
+    $tally = [ordered]@{}
+    foreach ($row in @($Rows)) {
+        $quantity = 0
+        [void][int]::TryParse([string]$row.quantity, [ref]$quantity)
+        if ($quantity -le 0) { continue }
+
+        foreach ($detail in ([string]$row.skill_details -split ';')) {
+            $detail = $detail.Trim()
+            if (-not $detail) { continue }
+            if ($detail -notmatch '^(.+?)\s+Lv(\d+|\?)$') { continue }
+
+            $skill = $matches[1].Trim()
+            $level = $null
+            if ($matches[2] -ne '?') { $level = [int]$matches[2] }
+            if (-not $tally.Contains($skill)) {
+                $tally[$skill] = [ordered]@{
+                    skill_name = $skill
+                    decoration_quantity = 0
+                    known_total_levels = 0
+                    has_unknown_level = $false
+                    decorations = [System.Collections.Generic.List[string]]::new()
+                }
+            }
+
+            $tally[$skill].decoration_quantity += $quantity
+            if ($null -ne $level) {
+                $tally[$skill].known_total_levels += ($quantity * $level)
+                $tally[$skill].decorations.Add("$($row.decoration_name) x$quantity (Lv$level)")
+            }
+            else {
+                $tally[$skill].has_unknown_level = $true
+                $tally[$skill].decorations.Add("$($row.decoration_name) x$quantity (Lv?)")
+            }
+        }
+    }
+
+    $rows = @($tally.Values | ForEach-Object {
+        [pscustomobject]([ordered]@{
+            skill_name = $_.skill_name
+            decoration_quantity = $_.decoration_quantity
+            known_total_levels = $_.known_total_levels
+            has_unknown_level = $_.has_unknown_level
+            decorations = ($_.decorations -join ";")
+        })
+    })
+    return @($rows | Sort-Object skill_name)
+}
+
 function Summarize-FishCaptures {
     param($Json, $Resolver)
 
@@ -1606,6 +1731,26 @@ for ($slotIndex = 0; $slotIndex -lt 3; $slotIndex++) {
         Write-CsvFile $csvPath $tallyRows @(
             "skill_name", "deco_count", "deco_levels", "native_in", "native_levels",
             "charm", "charm_level", "known_total_level", "has_unknown_level"
+        )
+        $writtenCsv += $csvPath
+
+        $decorationSummary = Summarize-DecorationBox $equipCurrent $resolver $localResolver
+        $path = Join-Path $jsonOutDir "$prefix-decorations-summary.json"
+        Write-JsonFile $path $decorationSummary
+        $writtenJson += $path
+
+        $csvPath = Join-Path $resolvedOutDir "$prefix-decorations-summary.csv"
+        Write-CsvFile $csvPath @($decorationSummary.decorations) @(
+            "accessory_id", "decoration_name", "decoration_type", "slot_level",
+            "rarity", "quantity", "skills", "skill_details"
+        )
+        $writtenCsv += $csvPath
+
+        $decorationSkillRows = Build-DecorationSkillsTally $decorationSummary.decorations
+        $csvPath = Join-Path $resolvedOutDir "$prefix-decoration-skills-summary.csv"
+        Write-CsvFile $csvPath $decorationSkillRows @(
+            "skill_name", "decoration_quantity", "known_total_levels",
+            "has_unknown_level", "decorations"
         )
         $writtenCsv += $csvPath
     }
