@@ -24,7 +24,7 @@ This note covers non-fish endemic life. For aquatic life, fish, fishing bait, an
 | Sandstar | Windward Plains 11/13/16 | Night; best Plenty/Fallow, possible Sandtide | Very skittish. Bring Sonic/Screamer Pods and Ghillie; Area 13 Oasis dunes are a common route. |
 | Black Windrustler | Windward Plains 8/10 | Plenty/Fallow, anytime | Use Ghillie; larger dark Windrustler variant. |
 | Hymstrigian | Windward Plains 8; Scarlet Forest 8 | Plenty/Fallow, often easiest at night | Blue bird; can perch at night. |
-| Grand Escunite | Scarlet Forest 8/12/17 | Night during Plenty | Aquatic/rod target rather than net target; Tentacle Jig. See fishing note. |
+| Grand Escunite | Scarlet Forest 8/12/17 | Night during Plenty | Aquatic/rod target rather than net target; use Tentacle Jig. See `fishing_locations.md` for the canonical fishing note. |
 | Giant Vigorwasp | Windward Plains 10/13; Scarlet Forest 8 | Plenty, anytime | Palico side-quest target. Capture with net instead of triggering it. |
 | Downy Crake | Iceshard Cliffs 7/10/12 | Fallow daytime/dusk | Found riding small monsters; approach with Ghillie. |
 | Nu Yaya | Oilwell Basin 17 | Plenty, anytime | Go to Nu Udra nest until Alma comments, then set/rest to Plenty and return. |

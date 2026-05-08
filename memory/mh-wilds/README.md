@@ -1,8 +1,8 @@
 # Monster Hunter Wilds Build Memory
 
-Last refreshed: 2026-05-06
+Last refreshed: 2026-05-08
 
-This folder is the local working memory for Monster Hunter Wilds weapon and armor buildcrafting. The data was scraped from Gamer Guides database pages and cross-checked against current guide/planner pages that mention Ver. 1.041 / 1.041.01 as the latest base-game data window.
+This folder is the local working memory for Monster Hunter Wilds buildcrafting, materials, monsters, side quests, endemic life, fishing, and unlock routing. The original equipment data was scraped from Gamer Guides database pages and cross-checked against current guide/planner pages that mention Ver. 1.041 / 1.041.01 as the latest base-game data window.
 
 ## Core Wilds Build Rules
 
@@ -70,3 +70,11 @@ Sources used for this memory:
 - User in-game check, 2026-05-07: inactive secondary weapon decorations do not appear in the active skill list.
 
 Known caveat: `skill_index.csv` is a derived convenience file based on skill-name matching in the normalized scraped text. For exact material costs or edge cases involving multi-skill jewels, check the corresponding normalized decoration and armor CSVs.
+
+## Note Boundaries
+
+- Put exact material and farming routes in `material_locations.md`.
+- Put fish, bait, and aquatic-life routing in `fishing_locations.md`.
+- Put capture-net endemic life in `endemic_life_locations.md`.
+- Put broad unlock tables in `unlocks_and_special_items.md`; keep quest walkthrough quirks in `side_quest_notes.md`.
+- Put monster weakness/location summaries in `monster_field_guide.md`, and verify exact hitzones/rewards in-game when precision matters.

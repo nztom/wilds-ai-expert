@@ -44,7 +44,7 @@ This note broadens the repo from build-only advice into general Monster Hunter W
 - Goldenfish / Platinumfish farming: Scarlet Forest Area 16 Ruin Interior or Area 12 waterfall with Golden Bughead.
 - Whopper farming: Scarlet Forest Area 17 Great Lake Shore. Use Tuff Joint Bait for Tuna / Trevally / Speartuna, Duster Rig for Gajau, Tentacle Jig at night for squid/escunites.
 - Gravid Bowfin quest: try Iceshard Cliffs Area 20 Ancient Room pop-up camp or Ruins of Wyveria Area 13 Hidden Cave, then use Emerald Jitterbait.
-- Nightflower Pollen is not a fish, but it supports Gold Melding Ticket trades: gather from Ephemeral Blossom during full moon at Scarlet Forest Area 18 and the Area 17/14 honey-vine connection.
+- Nightflower Pollen is not a fish, but it supports Gold Melding Ticket trades: gather from Ephemeral Blossom during full moon at Scarlet Forest Area 18 and the Area 17/14 honey-vine connection. See `material_locations.md` for the canonical decoration-farming note.
 
 ## Sources And Caveats
 

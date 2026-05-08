@@ -50,7 +50,7 @@ Notes:
 
 - Kanya fishing line unlocks fishing lures and fishing-related rewards. See `fishing_locations.md`.
 - Dareel/Samin endemic research line unlocks and teaches capture-net targets. See `endemic_life_locations.md`.
-- Material Retrieval missions matter more than their immediate rewards: they unlock passive gatherers in settlements.
+- Material Retrieval missions matter more than their immediate rewards: they unlock passive gatherers in settlements. For item-specific routing, keep canonical material locations in `material_locations.md` and endemic/aquatic captures in `endemic_life_locations.md` / `fishing_locations.md`.
 - Charm missions are especially worth doing because Armorcharm and Powercharm are persistent inventory power.
 - Great Hunt unlocks matter for high-rank routing and regional hunt access.
 
