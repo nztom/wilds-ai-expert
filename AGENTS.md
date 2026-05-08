@@ -52,3 +52,13 @@ The repo is currently a focused knowledge base with one main data directory:
 - Preserve refresh dates in human-readable notes.
 - Prefer normalized CSVs for lookup and raw CSVs when checking scrape quirks.
 - Do not overwrite user-added notes unless asked. Add new dated sections when updating living meta/build files.
+
+## Private Save And Tooling Safety
+
+- Treat the user's live Monster Hunter Wilds save as read-only and out of bounds.
+- Never write to any path outside this Git repository while working in this repo, unless the user explicitly gives a separate one-off instruction for that exact path.
+- Never write to any Steam library, Steam userdata directory, Steam Cloud directory, or game install directory.
+- Never write to the Monster Hunter Wilds save directory or any file under a path matching Steam userdata for app ID `2246340`, including `remote/win64_save`, `data001Slot.bin`, or `data00-1.bin`.
+- Any save-inspection workflow must first copy the save into an ignored location inside this repo, such as `memory/private-save/raw/`, then operate only on that copy.
+- Dumped save data must go under `memory/private-save/dumps/`, and interpreted private notes must go under `memory/private-save/`.
+- Prefer read-only dump tooling such as `ree-dump` over GUI save editing. Do not run account transfer, resign, repack, save, or editor write operations unless the user explicitly requests that exact operation and reconfirms the destination path.
