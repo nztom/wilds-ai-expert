@@ -462,24 +462,48 @@ function Summarize-ItemBox {
     }
 }
 
+# FreeVal0 for weapon entries encodes weapon type in the traditional MH 14-weapon ordering,
+# not in app.WeaponDef.TYPE_Fixed ordering. FreeVal1 is the weapon ID within the type's Fixed enum.
 function Get-WeaponIdEnumType {
-    param([string]$WeaponType)
+    param([int]$WeaponTypeId)
 
-    switch ($WeaponType) {
-        "LIGHT_BOWGUN" { return "app.WeaponDef.LightBowgunId_Fixed" }
-        "HEAVY_BOWGUN" { return "app.WeaponDef.HeavyBowgunId_Fixed" }
-        "BOW" { return "app.WeaponDef.BowId_Fixed" }
-        "ROD" { return "app.WeaponDef.RodId_Fixed" }
-        "CHARGE_AXE" { return "app.WeaponDef.ChargeAxeId_Fixed" }
-        "SLASH_AXE" { return "app.WeaponDef.SlashAxeId_Fixed" }
-        "GUN_LANCE" { return "app.WeaponDef.GunLanceId_Fixed" }
-        "LANCE" { return "app.WeaponDef.LanceId_Fixed" }
-        "WHISTLE" { return "app.WeaponDef.WhistleId_Fixed" }
-        "HAMMER" { return "app.WeaponDef.HammerId_Fixed" }
-        "TACHI" { return "app.WeaponDef.TachiId_Fixed" }
-        "TWIN_SWORD" { return "app.WeaponDef.TwinSwordId_Fixed" }
-        "SHORT_SWORD" { return "app.WeaponDef.ShortSwordId_Fixed" }
-        "LONG_SWORD" { return "app.WeaponDef.LongSwordId_Fixed" }
+    switch ($WeaponTypeId) {
+        0  { return "app.WeaponDef.TachiId_Fixed" }       # Great Sword
+        1  { return "app.WeaponDef.ShortSwordId_Fixed" }  # Sword & Shield
+        2  { return "app.WeaponDef.TwinSwordId_Fixed" }   # Dual Blades
+        3  { return "app.WeaponDef.LongSwordId_Fixed" }   # Long Sword
+        4  { return "app.WeaponDef.HammerId_Fixed" }      # Hammer
+        5  { return "app.WeaponDef.WhistleId_Fixed" }     # Hunting Horn
+        6  { return "app.WeaponDef.LanceId_Fixed" }       # Lance
+        7  { return "app.WeaponDef.GunLanceId_Fixed" }    # Gunlance
+        8  { return "app.WeaponDef.SlashAxeId_Fixed" }    # Switch Axe
+        9  { return "app.WeaponDef.ChargeAxeId_Fixed" }   # Charge Blade
+        10 { return "app.WeaponDef.RodId_Fixed" }         # Insect Glaive
+        11 { return "app.WeaponDef.BowId_Fixed" }         # Bow
+        12 { return "app.WeaponDef.HeavyBowgunId_Fixed" } # Heavy Bowgun
+        13 { return "app.WeaponDef.LightBowgunId_Fixed" } # Light Bowgun
+        default { return $null }
+    }
+}
+
+function Get-WeaponTypeName {
+    param([int]$WeaponTypeId)
+
+    switch ($WeaponTypeId) {
+        0  { return "GREAT_SWORD" }
+        1  { return "SWORD_AND_SHIELD" }
+        2  { return "DUAL_BLADES" }
+        3  { return "LONG_SWORD" }
+        4  { return "HAMMER" }
+        5  { return "HUNTING_HORN" }
+        6  { return "LANCE" }
+        7  { return "GUN_LANCE" }
+        8  { return "SWITCH_AXE" }
+        9  { return "CHARGE_BLADE" }
+        10 { return "INSECT_GLAIVE" }
+        11 { return "BOW" }
+        12 { return "HEAVY_BOWGUN" }
+        13 { return "LIGHT_BOWGUN" }
         default { return $null }
     }
 }
@@ -516,7 +540,6 @@ function Convert-EquipEntryToRow {
     $enum = $null
     $name = $null
     $armorPart = $null
-    $artianBase = $null
 
     if ([int64]$category -eq 0 -or [int64]$category -eq 1) {
         $kind = "armor"
@@ -537,23 +560,18 @@ function Convert-EquipEntryToRow {
         $enum = $resolved["enum"]
         $name = $resolved["name"]
     }
-    else {
-        $weaponType = Resolve-EnumValue $Resolver "app.WeaponDef.TYPE_Fixed" $category
-        $weaponIdEnumType = Get-WeaponIdEnumType $weaponType
+    elseif ([int64]$category -eq 13) {
+        # Category_Gender=13 means "weapon". FreeVal0 = weapon type in traditional MH 14-weapon
+        # ordering (0=GS, 1=SnS, 2=DB, 3=LS, 4=Hammer, 5=HH, 6=Lance, 7=GL, 8=SA, 9=CB,
+        # 10=IG, 11=Bow, 12=HBG, 13=LBG). FreeVal1 = weapon ID within that type's Fixed enum.
+        $weaponTypeInt = [int][int64]$freeVal0
+        $weaponIdEnumType = Get-WeaponIdEnumType $weaponTypeInt
         if ($weaponIdEnumType) {
             $kind = "weapon"
-            $type = $weaponType
-            # For Artian weapons (GrindingNum > 0), FreeVal1 holds the Artian weapon ID
-            # and FreeVal0 holds the base weapon used to craft it.
-            $isArtian = $null -ne $grindingNum -and [int64]$grindingNum -gt 0
-            $weaponId = if ($isArtian) { $freeVal1 } else { $freeVal0 }
-            $resolved = Resolve-EnumMappedName $Resolver $weaponIdEnumType $weaponId
+            $type = Get-WeaponTypeName $weaponTypeInt
+            $resolved = Resolve-EnumMappedName $Resolver $weaponIdEnumType $freeVal1
             $enum = $resolved["enum"]
             $name = $resolved["name"]
-            if ($isArtian) {
-                $baseResolved = Resolve-EnumMappedName $Resolver $weaponIdEnumType $freeVal0
-                $artianBase = $baseResolved["name"]
-            }
         }
     }
 
@@ -565,7 +583,6 @@ function Convert-EquipEntryToRow {
         enum = $enum
         name = $name
         armor_part = $armorPart
-        artian_base_weapon = $artianBase
         free_val0 = $freeVal0
         free_val1 = $freeVal1
         free_val2 = $freeVal2
@@ -1003,7 +1020,7 @@ for ($slotIndex = 0; $slotIndex -lt 3; $slotIndex++) {
 
         $csvPath = Join-Path $resolvedOutDir "$prefix-equip-summary.csv"
         Write-CsvFile $csvPath @($equipSummary.entries) @(
-            "index", "kind", "category_gender", "type", "enum", "name", "armor_part", "artian_base_weapon",
+            "index", "kind", "category_gender", "type", "enum", "name", "armor_part",
             "free_val0", "free_val1", "free_val2", "free_val3", "free_val4", "free_val5",
             "bonus_by_creating", "bonus_by_grinding", "grinding_num",
             "customize_or_skill_ids", "decoration_ids"
