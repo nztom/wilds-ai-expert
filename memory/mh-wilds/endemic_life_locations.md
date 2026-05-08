@@ -95,7 +95,7 @@ This note covers non-fish endemic life. For aquatic life, fish, fishing bait, an
 | Solanaria | Iceshard Cliffs 12/15/17/20; Ruins of Wyveria 1/2/5/6 | Any weather/time |
 | Sparklerjelly | Oilwell Basin 12/13/14/15 | Plenty/Inclemency, anytime |
 | Starduster | Scarlet Forest 2/3/6/8 | Plenty/Fallow, anytime |
-| Thunderbug | Windward Plains 1/2/3/4/6; Ruins of Wyveria 6 | Any weather/time |
+| Thunderbug | Windward Plains 1/2/3/4/6/7/8/9/11/14; Ruins of Wyveria 6 | Any weather/time. Capture with net or gather from Thunderbug nodes for Thunderbug Capacitor, used for Shock Traps and Thunder Ammo. |
 | Tracktail Lizard | Windward Plains 11/13 | Any weather/time |
 | Tyrant Hopper | Ruins of Wyveria 6 | Any weather/time |
 | Vaporonid | Scarlet Forest 2/3/6/8/15; Iceshard Cliffs 2/5 | Plenty daytime |

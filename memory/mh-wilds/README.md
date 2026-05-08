@@ -30,6 +30,9 @@ This folder is the local working memory for Monster Hunter Wilds weapon and armo
 - `current_meta_notes.md`: Current Ver. 1.041 / TU4 base-game meta snapshot for weapons, armor engines, Gogma Artian priorities, and hard-quest heuristics.
 - `fishing_locations.md`: Aquatic life, fish locations, bait, and Kanya fishing quest notes.
 - `endemic_life_locations.md`: Broader capture-net endemic life lookup, rare targets, conditions, and practical routes.
+- `monster_field_guide.md`: Compact large-monster locations, elemental weaknesses, break targets, and hunt notes.
+- `side_quest_notes.md`: Walkthrough notes for side quests with non-obvious objectives.
+- `unlocks_and_special_items.md`: Mantles, material gatherers, Palico skills, charms, hunting assistants, Great Hunts, and other functional side-quest unlocks.
 - `source_counts.json`: Source URLs and row counts from the refresh.
 
 ## Quick Query Examples
