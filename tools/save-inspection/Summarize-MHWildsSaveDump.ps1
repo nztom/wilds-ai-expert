@@ -627,6 +627,47 @@ function Summarize-EquipBox {
     }
 }
 
+function Summarize-EquipCurrent {
+    param($Json, $Resolver)
+
+    $slotNames = @("weapon", "head", "chest", "arms", "waist", "legs", "charm")
+
+    $equipIndexClass = Get-FieldValue -Class $Json -Name "_EquipIndex"
+    $indexArray = Get-FieldValue -Class $equipIndexClass -Name "Index"
+    $indices = @(Get-ArrayValues $indexArray)
+
+    $equipBoxArray = Get-FieldValue -Class $Json -Name "_EquipBox"
+    $boxEntries = @(Get-ArrayValues $equipBoxArray)
+
+    $slots = @()
+    for ($slotPos = 0; $slotPos -lt $indices.Count; $slotPos++) {
+        $boxIdx = [int]$indices[$slotPos]
+        if ($boxIdx -lt 0) {
+            continue
+        }
+
+        $slotName = if ($slotPos -lt $slotNames.Count) { $slotNames[$slotPos] } else { "slot_$slotPos" }
+        $entry = $boxEntries[$boxIdx]
+        $row = Convert-EquipEntryToRow -Entry $entry -Index $boxIdx -Resolver $Resolver
+        if ($null -eq $row) {
+            continue
+        }
+
+        $fullRow = [ordered]@{ slot = $slotName; slot_index = $slotPos }
+        foreach ($key in $row.PSObject.Properties.Name) { $fullRow[$key] = $row.$key }
+        $slots += [pscustomobject]$fullRow
+    }
+
+    return [ordered]@{
+        equipped_count = $slots.Count
+        slots = $slots
+        caveats = @(
+            "Equipment save fields are partly generic. Weapons, armor series/parts, and charms are resolved where local enum message assets support them.",
+            "Decoration/customize fields are currently emitted as internal IDs because the local assets do not expose a complete decoration ID-to-name map."
+        )
+    }
+}
+
 function Summarize-FishCaptures {
     param($Json, $Resolver)
 
@@ -1021,6 +1062,23 @@ for ($slotIndex = 0; $slotIndex -lt 3; $slotIndex++) {
         $csvPath = Join-Path $resolvedOutDir "$prefix-equip-summary.csv"
         Write-CsvFile $csvPath @($equipSummary.entries) @(
             "index", "kind", "category_gender", "type", "enum", "name", "armor_part",
+            "free_val0", "free_val1", "free_val2", "free_val3", "free_val4", "free_val5",
+            "bonus_by_creating", "bonus_by_grinding", "grinding_num",
+            "customize_or_skill_ids", "decoration_ids"
+        )
+        $written += $csvPath
+    }
+
+    $equipCurrent = Read-JsonFile (Join-Path $resolvedDumpDir "$prefix-equip-current.json")
+    if ($null -ne $equipCurrent) {
+        $equipCurrentSummary = Summarize-EquipCurrent $equipCurrent $resolver
+        $path = Join-Path $resolvedOutDir "$prefix-equip-current-summary.json"
+        Write-JsonFile $path $equipCurrentSummary
+        $written += $path
+
+        $csvPath = Join-Path $resolvedOutDir "$prefix-equip-current-summary.csv"
+        Write-CsvFile $csvPath @($equipCurrentSummary.slots) @(
+            "slot", "slot_index", "index", "kind", "category_gender", "type", "enum", "name", "armor_part",
             "free_val0", "free_val1", "free_val2", "free_val3", "free_val4", "free_val5",
             "bonus_by_creating", "bonus_by_grinding", "grinding_num",
             "customize_or_skill_ids", "decoration_ids"
