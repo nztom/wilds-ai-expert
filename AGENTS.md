@@ -57,8 +57,9 @@ The repo is a Monster Hunter Wilds knowledge base plus optional read-only save-i
 4. Use `memory/private-save/` only for user-specific save/build/progression facts; do not put private save facts in public memory files.
 5. For save inspection, read `memory/mh-wilds/save_inspection_workflow.md` first and follow its safety and interpretation workflow.
 6. For save-specific answers, read `memory/private-save/save-inspection.config.json` when present, use its `active_profile_id`, and only read files from that profile's `dump_dir`, `summary_dir`, and `active_character_slot_index` unless the user explicitly asks to switch profiles.
-7. Use web research when the question is about the latest patch/meta/event content, or when local memory is stale, incomplete, or contradicted by the user's in-game evidence.
-8. After verifying a meaningful new general fact, update or add a concise note under `memory/mh-wilds/` with the source and refresh date.
+7. When resolved save summaries are available for the active profile, ground user-specific advice in that actual save data before making assumptions about owned gear, decorations, item stock, captured endemic life, fishing records, quest progress, or unlocked systems.
+8. Use web research when the question is about the latest patch/meta/event content, or when local memory is stale, incomplete, or contradicted by the user's in-game evidence.
+9. After verifying a meaningful new general fact, update or add a concise note under `memory/mh-wilds/` with the source and refresh date.
 
 ## Build Advice Principles
 
@@ -69,6 +70,7 @@ The repo is a Monster Hunter Wilds knowledge base plus optional read-only save-i
 - Watch for overcapping affinity or investing in skills that do not affect the user's actual damage plan.
 - For hard quests, value uptime and cart prevention. Divine Blessing, Guts/Tenacity, relevant resistances, Stun Resistance, Blight Resistance, Guard/Guard Up, Evade Window, and Evade Extender can beat small sheet-DPS gains.
 - When reviewing screenshots, call out visible skills and likely slot opportunities, but be explicit about uncertainty if weapon stats, ammo table, talisman details, or set bonuses are not visible.
+- If active save summaries exist, prefer recommendations the user can act on with their actual inventory, decorations, equipment, materials, unlocks, and progression. Clearly separate "you can do this now" from "farm or unlock this next".
 
 ## Maintenance Notes
 
