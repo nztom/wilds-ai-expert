@@ -286,16 +286,26 @@ $skillRows = foreach ($entry in ($skillTotals.Values | Sort-Object Skill)) {
 }
 
 $loadoutRows = foreach ($row in $activeRows) {
+    $nameResolved = -not [string]::IsNullOrWhiteSpace($row.name)
     [pscustomobject]@{
         Slot = $row.slot
         Kind = $row.kind
         Type = $row.type
         Name = if ($row.name) { $row.name } else { $row.enum }
+        NameResolved = $nameResolved
         NativeSkillDetails = $row.native_skill_details
         DecorationNames = $row.decoration_names
         DecorationSkillDetails = $row.decoration_skill_details
     }
 }
+
+$warnings = @(
+    foreach ($row in $loadoutRows) {
+        if ($row.Kind -eq "weapon" -and -not $row.NameResolved) {
+            "Weapon display name is unresolved for $($row.Slot) ($($row.Type) $($row.Name)); this is expected for some weapon enums. Use type, enum, decorations, skills, and reinforcement fields instead of trying to resolve the name."
+        }
+    }
+)
 
 $ownedUsefulDecorations = foreach ($deco in ($ownedDecorations | Where-Object { [int]($_.quantity) -gt 0 } | Sort-Object decoration_name)) {
     [pscustomobject]@{
@@ -314,6 +324,7 @@ $context = [pscustomobject]@{
     SummaryDir = $summaryDir
     OverridePath = $overridePath
     OverridesApplied = @($appliedOverrides)
+    Warnings = @($warnings)
     Loadout = @($loadoutRows)
     Skills = @($skillRows)
     SecondaryWeapons = @($secondaryWeapons | Select-Object slot,type,name,decoration_names,decoration_skill_details)
@@ -327,6 +338,11 @@ if ($Json) {
 
 Write-Output "Active profile: $($context.ActiveProfileId)"
 Write-Output "Character slot: $slotIndex"
+if ($context.Warnings.Count -gt 0) {
+    Write-Output ""
+    Write-Output "Warnings"
+    $context.Warnings | ForEach-Object { Write-Output "- $_" }
+}
 Write-Output ""
 Write-Output "Loadout"
 $context.Loadout | Format-Table Slot,Kind,Type,Name,DecorationNames -AutoSize

@@ -47,9 +47,10 @@ For PowerShell 7, Git submodule, Rust/Cargo, and script-running prerequisites, r
 4. For save-specific answers, resolve current state with `tools/memory-query/Resolve-MHWildsCurrentState.ps1`, then use summary CSVs from that active profile only.
 5. For current-build advice from save data, use the resolver output or `tools/memory-query/Get-MHWildsBuildContext.ps1`; both apply ignored private build overrides when present.
 6. When the user reports a build change not reflected in the copied save, resolve the exact equipment slot and decoration names, then record it with `tools/memory-query/Add-MHWildsBuildOverride.ps1` instead of editing generated summary CSVs.
-7. Do not open private summary JSON or expanded dumps unless the CSVs are insufficient and the user asks for deeper inspection.
-8. Use web research for latest patch/meta/event content, stale local memory, or contradictions from the user's in-game evidence.
-9. Store verified general facts under `memory/mh-wilds/`; store user-specific save/build/progression facts only under ignored `memory/private-save/`; store unverified user gameplay observations under ignored `memory/user-reports/`.
+7. Some save weapon enums do not resolve to display names, especially entries like `Lance_085`. Treat this as a known data gap and do not spiral on name resolution; use weapon type, enum, decorations, skills, reinforcement fields, and user screenshots unless the user explicitly asks to research the name.
+8. Do not open private summary JSON or expanded dumps unless the CSVs are insufficient and the user asks for deeper inspection.
+9. Use web research for latest patch/meta/event content, stale local memory, or contradictions from the user's in-game evidence.
+10. Store verified general facts under `memory/mh-wilds/`; store user-specific save/build/progression facts only under ignored `memory/private-save/`; store unverified user gameplay observations under ignored `memory/user-reports/`.
 
 ## Build Advice Principles
 

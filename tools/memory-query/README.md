@@ -17,6 +17,8 @@ These scripts only read repo-local CSVs or ignored private config. They do not i
 
 Planned helper work lives in `tools/memory-query/TODO.md`.
 
+Some save weapon enums do not currently resolve to display names in the local assets. `Get-MHWildsBuildContext.ps1` falls back to values such as `Lance_085` and emits a warning. Treat that as a known data gap: use the weapon type, enum, decorations, skills, reinforcement fields, and user screenshots instead of trying to resolve the display name unless the user explicitly asks for that research.
+
 ## Current State Resolution
 
 Use `Resolve-MHWildsCurrentState.ps1` as the first stop for save-aware answers. It:
