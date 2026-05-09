@@ -8,3 +8,6 @@ memory/user-reports/
 .cargo-home/
 .cargo-target/
 memory/mh-wilds/.cache/
+
+# Local editor settings.
+.vscode/

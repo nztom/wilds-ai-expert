@@ -25,3 +25,7 @@ Never write to Steam libraries, Steam userdata, Steam Cloud directories, game in
 ## Private Data
 
 `memory/private-save/`, `memory/user-reports/`, `.cargo-home/`, and `.cargo-target/` are ignored local-only paths. Do not commit private save facts, copied saves, dumps, summaries, user-reported gameplay observations, or local build caches.
+
+## License
+
+This repository's original code and documentation are released under the MIT License. Third-party tools, submodules, and Monster Hunter Wilds game data remain subject to their own owners' terms.
