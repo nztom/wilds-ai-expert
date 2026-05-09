@@ -292,10 +292,11 @@ Both families share `value_preview`, `field_info`, `type_name`, `get_field`, and
 - `slotN-fishing-summary.csv`: observed fish records and capture counts with resolved fish names.
 - `slotN-monster-report-summary.csv`: observed monster/endemic/fish report records with resolved names.
 - `slotN-endemic-summary.csv`: endemic capture entries grouped by resolved `EmId`, with resolved names.
+- `slotN-mission-progress-summary.csv`: mission IDs/titles with mission/quest clear, active, failed, and checked flags; includes a heuristic optional-quest category for readable optional completion checks.
 - `index.json`: manifest of all files written, with separate `csv_files` and `json_files` lists.
 
 **JSON in `json/` subfolder — open only when the user asks for more detail:**
-- `profile-summary.json`, `slotN-inventory-summary.json`, `slotN-equip-summary.json`, `slotN-equip-current-summary.json`, `slotN-decorations-summary.json`, `slotN-fishing-summary.json`, `slotN-monster-report-summary.json`, `slotN-endemic-summary.json`: structured counterparts to the CSVs above, with metadata fields (totals, caveats) not present in the flat CSV.
+- `profile-summary.json`, `slotN-inventory-summary.json`, `slotN-equip-summary.json`, `slotN-equip-current-summary.json`, `slotN-decorations-summary.json`, `slotN-fishing-summary.json`, `slotN-monster-report-summary.json`, `slotN-endemic-summary.json`, `slotN-mission-progress-summary.json`: structured counterparts to the CSVs above, with metadata fields (totals, caveats) not present in the flat CSV.
 - `slotN-story-summary.json`, `slotN-mission-summary.json`, `slotN-quest-record-summary.json`, `slotN-delivery-bounty-summary.json`, `slotN-camp-summary.json`: scalar fields plus nonzero array entries (JSON only, no CSV counterpart).
 
 Read the CSVs for quick answers. If detail is missing, mention the JSON files are available and wait to be asked. The expanded `dumps/` JSON remains the source of truth when a summary is too lossy. Empty slot CSVs can be tiny blank files when a slot has no rows for that table.
@@ -361,7 +362,7 @@ slot2-camp.json
 
 Inactive/default slots can still have save containers, so targeted files may be written for all three slots even when only one slot is active.
 
-Expected summary outputs: CSVs and `index.json` at the summary dir root; JSON versions in a `json/` subfolder. CSVs cover profile, inventory, owned decorations, decoration skill rollups, equipment box, equipped loadout, fishing, monster report, and endemic captures. JSON also includes story, mission, quest-record, delivery-bounty, and camp summaries with no CSV counterpart.
+Expected summary outputs: CSVs and `index.json` at the summary dir root; JSON versions in a `json/` subfolder. CSVs cover profile, inventory, owned decorations, decoration skill rollups, equipment box, equipped loadout, fishing, monster report, endemic captures, and mission progress. JSON also includes story, mission, quest-record, delivery-bounty, and camp summaries with no CSV counterpart.
 
 Also verify `memory/private-save/save-inspection.config.json` points at the intended `copy_id`, `summary_dir`, and `active_character_slot_index`.
 

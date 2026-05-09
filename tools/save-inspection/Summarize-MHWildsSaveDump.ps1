@@ -180,6 +180,31 @@ function Get-EnglishMessage {
     return ($text -replace "`r`n", " " -replace "`n", " ").Trim()
 }
 
+function Resolve-MessageRefs {
+    param(
+        [string]$Text,
+        $MessageByName,
+        [int]$Depth = 0
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Text) -or $null -eq $MessageByName -or $Depth -ge 5) {
+        return $Text
+    }
+
+    return [regex]::Replace($Text, '<REF\s+([^>]+)>', {
+        param($Match)
+
+        $refName = $Match.Groups[1].Value
+        $message = Get-ObjectPropertyValue $MessageByName $refName
+        $english = Get-EnglishMessage $message
+        if ([string]::IsNullOrWhiteSpace($english)) {
+            return $Match.Value
+        }
+
+        return Resolve-MessageRefs -Text $english -MessageByName $MessageByName -Depth ($Depth + 1)
+    })
+}
+
 function Initialize-NameResolver {
     param([Parameter(Mandatory = $true)][string]$RepoRoot)
 
@@ -206,8 +231,12 @@ function Initialize-NameResolver {
     $messageMap = Get-ObjectPropertyValue $messages "msgs"
 
     $enemyNames = @{}
+    $messageByName = @{}
     foreach ($message in $messageMap.Values) {
         $messageName = Get-ObjectPropertyValue $message "name"
+        if ($messageName) {
+            $messageByName[$messageName] = $message
+        }
         if ($messageName -and $messageName.StartsWith("EnemyText_NAME_")) {
             $enemyKey = $messageName.Substring("EnemyText_NAME_".Length)
             $english = Get-EnglishMessage $message
@@ -245,11 +274,28 @@ function Initialize-NameResolver {
         }
     }
 
+    # Mission titles are stored directly as message names like "Mission101001_100".
+    # They are not exposed through enums_mappings_mhwilds.json, so build a small
+    # enum key -> display title table from the message name itself.
+    $missionNames = @{}
+    foreach ($message in $messageMap.Values) {
+        $messageName = Get-ObjectPropertyValue $message "name"
+        if ($messageName -and $messageName -match '^Mission(\d{6})_100$') {
+            $missionKey = "MISSION_$($matches[1])"
+            $english = Get-EnglishMessage $message
+            if ($english) {
+                $missionNames[$missionKey] = Resolve-MessageRefs -Text $english -MessageByName $messageByName
+            }
+        }
+    }
+
     return [pscustomobject]@{
         enums = $enums
         mappings = $mappings
         item_fixed_enum = $itemFixedEnum
         enemy_fixed_enum = $enemyFixedEnum
+        mission_id_enum = (Get-ObjectPropertyValue $enums "app.MissionIDList.ID")
+        mission_names = $missionNames
         item_message_map = $itemMessageMap
         accessory_id_enum = (Get-ObjectPropertyValue $enums "app.EquipDef.ACCESSORY_ID")
         accessory_fixed_enum = (Get-ObjectPropertyValue $enums "app.EquipDef.ACCESSORY_ID_Fixed")
@@ -258,6 +304,7 @@ function Initialize-NameResolver {
         bowgun_customize_fixed_enum = (Get-ObjectPropertyValue $enums "app.CustomizeItemID.ID_Fixed")
         bowgun_customize_hash_to_name = $bowgunCustomizeHashToName
         messages = $messageMap
+        messages_by_name = $messageByName
         enemy_names = $enemyNames
     }
 }
@@ -1699,6 +1746,122 @@ function Summarize-ArrayValue {
     }
 }
 
+function Get-FlagSetFromGenericSummary {
+    param(
+        $Summary,
+        [Parameter(Mandatory = $true)][string]$ClassName
+    )
+
+    $set = @{}
+    $classes = Get-ObjectPropertyValue $Summary "classes"
+    $flagClass = Get-ObjectPropertyValue $classes $ClassName
+    $arrays = Get-ObjectPropertyValue $flagClass "arrays"
+    $valueArray = Get-ObjectPropertyValue $arrays "Value"
+    $values = @(Get-ObjectPropertyValue $valueArray "values")
+
+    foreach ($entry in $values) {
+        $wordIndex = Get-ObjectPropertyValue $entry "index"
+        $rawValue = Get-ObjectPropertyValue $entry "value"
+        if ($null -eq $wordIndex -or $null -eq $rawValue) { continue }
+
+        $value = [uint64]([Convert]::ToUInt64([string]$rawValue))
+        for ($bit = 0; $bit -lt 32; $bit++) {
+            $mask = ([uint64]1) -shl $bit
+            if (($value -band $mask) -ne 0) {
+                $set[([int]$wordIndex * 32 + $bit)] = $true
+            }
+        }
+    }
+
+    return $set
+}
+
+function Get-MissionCategoryGuess {
+    param([string]$MissionKey)
+
+    if ([string]::IsNullOrWhiteSpace($MissionKey)) { return "" }
+    if ($MissionKey -match '^MISSION_10[1-7]\d{3}$') { return "optional" }
+    if ($MissionKey -match '^MISSION_109\d{3}$') { return "hunting_exercise" }
+    if ($MissionKey -match '^MISSION_199\d{3}$') { return "special_optional_ref" }
+    if ($MissionKey -match '^MISSION_20\d{4}$') { return "arena" }
+    if ($MissionKey -match '^MISSION_7\d{5}$') { return "event_or_challenge" }
+    if ($MissionKey -match '^MISSION_\d{6}$') {
+        $number = [int]$MissionKey.Substring("MISSION_".Length)
+        if ($number -lt 100000) { return "story_or_assignment" }
+    }
+    return "other"
+}
+
+function Test-IsOptionalQuestLike {
+    param([string]$CategoryGuess)
+
+    return @("optional", "hunting_exercise", "special_optional_ref") -contains $CategoryGuess
+}
+
+function Summarize-MissionProgress {
+    param(
+        $MissionSummary,
+        $Resolver
+    )
+
+    $missionClear = Get-FlagSetFromGenericSummary $MissionSummary "MissionClearFlag"
+    $questClear = Get-FlagSetFromGenericSummary $MissionSummary "QuestClearFlag"
+    $questActive = Get-FlagSetFromGenericSummary $MissionSummary "QuestActiveFlag"
+    $questFailed = Get-FlagSetFromGenericSummary $MissionSummary "QuestFailedFlag"
+    $questChecked = Get-FlagSetFromGenericSummary $MissionSummary "QuestCheckFlag"
+
+    $rows = @()
+    $missionEnum = Get-ObjectPropertyValue $Resolver "mission_id_enum"
+    $missionNames = Get-ObjectPropertyValue $Resolver "mission_names"
+
+    if ($null -ne $missionEnum) {
+        foreach ($entry in $missionEnum.GetEnumerator()) {
+            $missionKey = [string]$entry.Key
+            if (-not $missionKey.StartsWith("MISSION_")) { continue }
+
+            $index = [int]$entry.Value
+            $title = [string](Get-ObjectPropertyValue $missionNames $missionKey)
+            $hasAnyFlag = $missionClear.ContainsKey($index) -or
+                $questClear.ContainsKey($index) -or
+                $questActive.ContainsKey($index) -or
+                $questFailed.ContainsKey($index) -or
+                $questChecked.ContainsKey($index)
+
+            if ([string]::IsNullOrWhiteSpace($title) -and -not $hasAnyFlag) { continue }
+
+            $categoryGuess = Get-MissionCategoryGuess $missionKey
+            $rows += [pscustomobject]([ordered]@{
+                mission_index = $index
+                mission_id = $missionKey
+                title = $title
+                category_guess = $categoryGuess
+                optional_quest_like = Test-IsOptionalQuestLike $categoryGuess
+                mission_clear = $missionClear.ContainsKey($index)
+                quest_clear = $questClear.ContainsKey($index)
+                quest_active = $questActive.ContainsKey($index)
+                quest_failed = $questFailed.ContainsKey($index)
+                quest_checked = $questChecked.ContainsKey($index)
+            })
+        }
+    }
+
+    $sortedRows = @($rows | Sort-Object mission_index)
+    $optionalRows = @($sortedRows | Where-Object { $_.optional_quest_like })
+    $optionalCleared = @($optionalRows | Where-Object { $_.mission_clear -or $_.quest_clear })
+
+    return [ordered]@{
+        caveats = @(
+            "Mission titles are resolved from local message names like Mission######_100.",
+            "category_guess is heuristic. Standard optional quests generally use MISSION_101xxx through MISSION_107xxx; hunting exercises and special optional references are tagged separately.",
+            "mission_clear and quest_clear are separate save bitsets. Treat either true value as evidence the mission has been cleared."
+        )
+        total_missions = $sortedRows.Count
+        optional_quest_like_count = $optionalRows.Count
+        optional_quest_like_cleared_count = $optionalCleared.Count
+        missions = $sortedRows
+    }
+}
+
 function Summarize-ProfileSlots {
     param($Json)
 
@@ -1930,6 +2093,20 @@ for ($slotIndex = 0; $slotIndex -lt 3; $slotIndex++) {
             $path = Join-Path $jsonOutDir "$prefix-$summaryName-summary.json"
             Write-JsonFile $path $summary
             $writtenJson += $path
+
+            if ($name -eq "mission") {
+                $missionProgress = Summarize-MissionProgress -MissionSummary $summary -Resolver $resolver
+                $progressPath = Join-Path $jsonOutDir "$prefix-mission-progress-summary.json"
+                Write-JsonFile $progressPath $missionProgress
+                $writtenJson += $progressPath
+
+                $csvPath = Join-Path $resolvedOutDir "$prefix-mission-progress-summary.csv"
+                Write-CsvFile $csvPath @($missionProgress.missions) @(
+                    "mission_index", "mission_id", "title", "category_guess", "optional_quest_like",
+                    "mission_clear", "quest_clear", "quest_active", "quest_failed", "quest_checked"
+                )
+                $writtenCsv += $csvPath
+            }
         }
     }
 }
