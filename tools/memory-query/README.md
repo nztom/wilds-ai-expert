@@ -11,6 +11,7 @@ Small read-only helpers for common local lookups. Use these from the repo root w
 .\tools\memory-query\Get-MHWildsActiveSaveProfile.ps1
 .\tools\memory-query\Get-MHWildsBuildContext.ps1
 .\tools\memory-query\Get-MHWildsCurrentSkills.ps1 -Sources
+.\tools\memory-query\Get-MHWildsArtianReport.ps1
 ```
 
 These scripts only read repo-local CSVs or ignored private config. They do not inspect live saves.
@@ -18,6 +19,8 @@ These scripts only read repo-local CSVs or ignored private config. They do not i
 Planned helper work lives in `tools/memory-query/TODO.md`.
 
 Some save weapon enums do not currently resolve to display names in the local assets. `Get-MHWildsBuildContext.ps1` falls back to values such as `Lance_085` and emits a warning. Treat that as a known data gap: use the weapon type, enum, decorations, skills, reinforcement fields, and user screenshots instead of trying to resolve the display name unless the user explicitly asks for that research.
+
+`Get-MHWildsArtianReport.ps1` reads the active profile's equipment summary and prints decoded Artian/Gogma weapon performance, creation bonuses, and reinforcement bonuses. Pass `-AllWeapons` to include ordinary weapons with blank Artian fields.
 
 ## Current State Resolution
 

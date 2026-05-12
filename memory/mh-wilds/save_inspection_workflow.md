@@ -285,8 +285,8 @@ Both families share `value_preview`, `field_info`, `type_name`, `get_field`, and
 **CSVs at summary dir root — read these first:**
 - `profile-summary.csv`: active slots and visible profile/presence fields.
 - `slotN-inventory-summary.csv`: nonzero item-box entries with item IDs, enum keys, resolved item names, and quantities.
-- `slotN-equip-summary.csv`: equipment-box entries with kind, type, name, armor part, free vals, and decoration names.
-- `slotN-equip-current-summary.csv`: currently equipped items mapped to named slots (weapon, head, chest, arms, waist, legs, charm).
+- `slotN-equip-summary.csv`: equipment-box entries with kind, type, name, armor part, free vals, decoration names, and decoded Artian/Gogma performance/bonus fields where available.
+- `slotN-equip-current-summary.csv`: currently equipped items mapped to named slots (weapon, head, chest, arms, waist, legs, charm), including decoded Artian/Gogma fields for equipped weapons where available.
 - `slotN-decorations-summary.csv`: loose owned decorations from `_Equip._AccessoryBox`, including decoration type, required slot level, rarity, quantity, skills, and skill levels.
 - `slotN-decoration-skills-summary.csv`: skill-oriented rollup of owned decorations, including total decoration quantity and known total skill levels per skill.
 - `slotN-fishing-summary.csv`: observed fish records and capture counts with resolved fish names.

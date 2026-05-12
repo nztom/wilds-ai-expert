@@ -606,6 +606,42 @@ function Resolve-EnumMappedName {
     }
 }
 
+function Resolve-EnumMappedDisplay {
+    param(
+        $Resolver,
+        [Parameter(Mandatory = $true)]
+        [string]$EnumType,
+        $Id
+    )
+
+    $enumName = $null
+    $name = $null
+    if ($null -ne $Resolver -and $null -ne $Id) {
+        $enumMap = Get-ObjectPropertyValue $Resolver.enums $EnumType
+        $messageMap = Get-ObjectPropertyValue $Resolver.mappings $EnumType
+        $enumName = Get-ObjectPropertyValue $enumMap ([string]$Id)
+        if ($enumName -and $null -ne $messageMap) {
+            $guidText = Get-ObjectPropertyValue $messageMap $enumName
+            $names = [System.Collections.Generic.List[string]]::new()
+            foreach ($guid in @(([string]$guidText) -split "," | ForEach-Object { $_.Trim() } | Where-Object { $_ })) {
+                $message = Get-ObjectPropertyValue $Resolver.messages $guid
+                $english = Get-EnglishMessage $message
+                if ($english) {
+                    $names.Add($english)
+                }
+            }
+            if ($names.Count -gt 0) {
+                $name = $names -join " / "
+            }
+        }
+    }
+
+    return [ordered]@{
+        enum = $enumName
+        name = $name
+    }
+}
+
 function Resolve-EnumValue {
     param(
         $Resolver,
@@ -620,6 +656,90 @@ function Resolve-EnumValue {
 
     $enumMap = Get-ObjectPropertyValue $Resolver.enums $EnumType
     return Get-ObjectPropertyValue $enumMap ([string]$Id)
+}
+
+function Resolve-ArtianBonusId {
+    param($Resolver, $Id)
+
+    if ($null -eq $Id) {
+        return $null
+    }
+
+    $resolved = Resolve-EnumMappedDisplay $Resolver "app.ArtianDef.BONUS_ID_Fixed" $Id
+    if ($resolved["name"]) {
+        return $resolved["name"]
+    }
+    if ($resolved["enum"] -and $resolved["enum"] -ne "INVALID") {
+        return $resolved["enum"]
+    }
+    if ([int64]$Id -eq 0) {
+        return $null
+    }
+    return [string]$Id
+}
+
+function Decode-ArtianCreatingBonus {
+    param($Resolver, $Value)
+
+    if ($null -eq $Value -or [int64]$Value -eq 0) {
+        return [ordered]@{
+            skill_id = ""
+            skill_enum = ""
+            skill_name = ""
+            bonus_ids = ""
+            bonus_names = ""
+        }
+    }
+
+    $raw = [uint64]$Value
+    $skillDigit1 = [uint64][Math]::Floor($raw / 10000000) % 10
+    $skillDigit2 = [uint64][Math]::Floor($raw / 10000) % 10
+    $skillDigit3 = [uint64][Math]::Floor($raw / 10) % 10
+    $skillId = [int](($skillDigit1 * 100) + ($skillDigit2 * 10) + $skillDigit3)
+
+    $bonusIds = @(
+        [int](([uint64][Math]::Floor($raw / 1000000)) % 10),
+        [int](([uint64][Math]::Floor($raw / 1000)) % 10),
+        [int]($raw % 10)
+    )
+
+    $skillResolved = Resolve-EnumMappedDisplay $Resolver "app.ArtianDef.ArtianSkillType_Fixed" $skillId
+    $bonusNames = @($bonusIds | ForEach-Object { Resolve-ArtianBonusId $Resolver $_ } | Where-Object { $_ })
+
+    return [ordered]@{
+        skill_id = $skillId
+        skill_enum = $skillResolved["enum"]
+        skill_name = $skillResolved["name"]
+        bonus_ids = ($bonusIds -join ";")
+        bonus_names = ($bonusNames -join ";")
+    }
+}
+
+function Decode-ArtianGrindingBonus {
+    param($Resolver, $Value)
+
+    if ($null -eq $Value -or [uint64]$Value -eq 0) {
+        return [ordered]@{
+            bonus_ids = ""
+            bonus_names = ""
+        }
+    }
+
+    $raw = [uint64]$Value
+    $bonusIds = @(
+        [int](([uint64][Math]::Floor($raw / 1000000000000)) % 1000),
+        [int](([uint64][Math]::Floor($raw / 1000000000)) % 1000),
+        [int](([uint64][Math]::Floor($raw / 1000000)) % 1000),
+        [int](([uint64][Math]::Floor($raw / 1000)) % 1000),
+        [int]($raw % 1000)
+    )
+
+    $bonusNames = @($bonusIds | ForEach-Object { Resolve-ArtianBonusId $Resolver $_ } | Where-Object { $_ })
+
+    return [ordered]@{
+        bonus_ids = ($bonusIds -join ";")
+        bonus_names = ($bonusNames -join ";")
+    }
 }
 
 function Resolve-ItemId {
@@ -1028,6 +1148,19 @@ function Convert-EquipEntryToRow {
     $enum = $null
     $name = $null
     $armorPart = $null
+    $artianPerformanceType = ""
+    $artianPerformanceName = ""
+    $artianCreating = [ordered]@{
+        skill_id = ""
+        skill_enum = ""
+        skill_name = ""
+        bonus_ids = ""
+        bonus_names = ""
+    }
+    $artianGrinding = [ordered]@{
+        bonus_ids = ""
+        bonus_names = ""
+    }
 
     if ([int64]$category -eq 0 -or [int64]$category -eq 1) {
         $kind = "armor"
@@ -1064,6 +1197,11 @@ function Convert-EquipEntryToRow {
             $resolved = Resolve-EnumMappedName $Resolver $weaponIdEnumType $freeVal1
             $enum = $resolved["enum"]
             $name = $resolved["name"]
+            $performance = Resolve-EnumMappedDisplay $Resolver "app.ArtianDef.PERFORMANCE_TYPE_Fixed" $freeVal2
+            $artianPerformanceType = $performance["enum"]
+            $artianPerformanceName = $performance["name"]
+            $artianCreating = Decode-ArtianCreatingBonus $Resolver $bonusByCreating
+            $artianGrinding = Decode-ArtianGrindingBonus $Resolver $bonusByGrinding
         }
     }
 
@@ -1130,7 +1268,16 @@ function Convert-EquipEntryToRow {
         free_val4 = $freeVal4
         free_val5 = $freeVal5
         bonus_by_creating = $bonusByCreating
+        artian_performance_type = $artianPerformanceType
+        artian_performance_name = $artianPerformanceName
+        artian_creation_skill_id = $artianCreating["skill_id"]
+        artian_creation_skill_enum = $artianCreating["skill_enum"]
+        artian_creation_skill_name = $artianCreating["skill_name"]
+        artian_creation_bonus_ids = $artianCreating["bonus_ids"]
+        artian_creation_bonus_names = $artianCreating["bonus_names"]
         bonus_by_grinding = $bonusByGrinding
+        artian_grinding_bonus_ids = $artianGrinding["bonus_ids"]
+        artian_grinding_bonus_names = $artianGrinding["bonus_names"]
         grinding_num = $grindingNum
         customize_or_skill_ids = $customizeIds
         bowgun_mod_ids = $customizeIds
@@ -1169,6 +1316,7 @@ function Summarize-EquipBox {
         entries = $rows
         caveats = @(
             "Equipment save fields are partly generic. Weapons, armor series/parts, and charms are resolved where local enum message assets support them.",
+            "Artian/Gogma weapon performance, creation bonuses, and grinding bonuses are decoded from BonusByCreating, BonusByGrinding, and FreeVal2 when local enum message assets support them. Raw numeric values are retained for cross-reference.",
             "Bowgun mods from BowgunCustomizeId are listed in bowgun_mod_ids and bowgun_mod_names when local enum message assets support them.",
             "Decoration names are resolved from local Wilds assets. The raw numeric IDs are also retained in decoration_ids for cross-reference.",
             "Decoration and roman-numeral charm levels are inferred from local skill/deco tables. Native armor skill levels are resolved from armor_normalized.csv SkillDetails when available; otherwise they are marked Lv?."
@@ -1989,7 +2137,10 @@ for ($slotIndex = 0; $slotIndex -lt 3; $slotIndex++) {
         Write-CsvFile $csvPath @($equipSummary.entries) @(
             "index", "kind", "category_gender", "type", "enum", "name", "armor_part",
             "free_val0", "free_val1", "free_val2", "free_val3", "free_val4", "free_val5",
-            "bonus_by_creating", "bonus_by_grinding", "grinding_num",
+            "bonus_by_creating", "artian_performance_type", "artian_performance_name",
+            "artian_creation_skill_id", "artian_creation_skill_enum", "artian_creation_skill_name",
+            "artian_creation_bonus_ids", "artian_creation_bonus_names",
+            "bonus_by_grinding", "artian_grinding_bonus_ids", "artian_grinding_bonus_names", "grinding_num",
             "customize_or_skill_ids", "bowgun_mod_ids", "bowgun_mod_names", "decoration_ids", "decoration_names",
             "native_skills", "decoration_skills", "native_skill_details", "decoration_skill_details"
         )
@@ -2007,7 +2158,10 @@ for ($slotIndex = 0; $slotIndex -lt 3; $slotIndex++) {
         Write-CsvFile $csvPath @($equipCurrentSummary.slots) @(
             "slot", "slot_index", "index", "kind", "category_gender", "type", "enum", "name", "armor_part",
             "free_val0", "free_val1", "free_val2", "free_val3", "free_val4", "free_val5",
-            "bonus_by_creating", "bonus_by_grinding", "grinding_num",
+            "bonus_by_creating", "artian_performance_type", "artian_performance_name",
+            "artian_creation_skill_id", "artian_creation_skill_enum", "artian_creation_skill_name",
+            "artian_creation_bonus_ids", "artian_creation_bonus_names",
+            "bonus_by_grinding", "artian_grinding_bonus_ids", "artian_grinding_bonus_names", "grinding_num",
             "customize_or_skill_ids", "bowgun_mod_ids", "bowgun_mod_names", "decoration_ids", "decoration_names",
             "native_skills", "decoration_skills", "native_skill_details", "decoration_skill_details"
         )
